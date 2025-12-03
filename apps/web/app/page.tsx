@@ -198,7 +198,8 @@ export default function Home() {
     lastFrameRef.current = performance.now();
 
     const loop = (timestamp: number) => {
-      const dt = (timestamp - lastFrameRef.current) / 1000;
+      const rawDt = (timestamp - lastFrameRef.current) / 1000;
+      const dt = Math.min(rawDt, 0.05); // clamp to avoid burst after tab switches
       lastFrameRef.current = timestamp;
 
       if (viewMode === "2d") {
@@ -218,6 +219,16 @@ export default function Home() {
       rafRef.current = null;
     };
   }, [viewMode, viewport, nodes.length]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        lastFrameRef.current = performance.now();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
