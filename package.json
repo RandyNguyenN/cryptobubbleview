@@ -17,5 +17,10 @@
 
     "build:core": "npm --workspace packages/core run build",
     "build:extension": "npm --workspace apps/extension run build"
+  },
+  "dependencies": {
+    "next": "16.0.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   }
 }
