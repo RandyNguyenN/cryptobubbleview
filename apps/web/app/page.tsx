@@ -18,12 +18,33 @@ type HoverState = { coin: CoinMarket; x: number; y: number } | null;
 type LabelMode = "both" | "name" | "logo";
 type BubbleStyle = "glass" | "basic";
 type ModalState = { coin: CoinMarket; tf: Timeframe } | null;
+const API_BASE = "https://api.coingecko.com/api/v3/coins/markets";
 
 const ranges = Array.from({ length: 10 }, (_, i) => {
   const start = i * 100 + 1;
   const end = start + 99;
   return { label: `${start}-${end}`, page: i + 1, perPage: 100 };
 });
+
+async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promise<Response> {
+  let attempt = 0;
+  let lastError: unknown;
+  while (attempt < attempts) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+      lastError = new Error(`API error ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+    attempt += 1;
+    if (attempt < attempts) {
+      const jitter = Math.random() * 400;
+      await new Promise((r) => setTimeout(r, delayMs + jitter));
+    }
+  }
+  throw lastError ?? new Error("API request failed");
+}
 
 export default function Home() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -73,16 +94,34 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const url = buildApiUrl({
-          perPage: range.perPage,
-          page: range.page,
-          vsCurrency: "usd",
-          priceChangePercentages: ["1h", "24h", "7d", "30d", "365d"]
-        });
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`API error ${res.status}`);
-        const json = (await res.json()) as CoinMarket[];
-        setCoins(json);
+        if (showFavoritesOnly) {
+          if (!favoriteIds.size) {
+            setCoins([]);
+            setLoading(false);
+            return;
+          }
+          const params = new URLSearchParams({
+            vs_currency: "usd",
+            ids: [...favoriteIds].join(","),
+            order: "market_cap_desc",
+            per_page: String(Math.max(1, Math.min(250, favoriteIds.size))),
+            page: "1",
+            price_change_percentage: "1h,24h,7d,30d,365d"
+          });
+          const res = await fetchWithRetry(`${API_BASE}?${params.toString()}`);
+          const json = (await res.json()) as CoinMarket[];
+          setCoins(json);
+        } else {
+          const url = buildApiUrl({
+            perPage: range.perPage,
+            page: range.page,
+            vsCurrency: "usd",
+            priceChangePercentages: ["1h", "24h", "7d", "30d", "365d"]
+          });
+          const res = await fetchWithRetry(url);
+          const json = (await res.json()) as CoinMarket[];
+          setCoins(json);
+        }
         const now = new Date();
         setLastUpdated(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
       } catch (err) {
@@ -93,13 +132,11 @@ export default function Home() {
       }
     };
     load();
-  }, [range, reloadKey]);
+  }, [range, reloadKey, showFavoritesOnly, favoriteIds]);
 
   useEffect(() => {
     if (!viewport.width || !viewport.height) return;
-    const filtered = showFavoritesOnly
-      ? coins.filter((c) => favoriteIds.has(c.id))
-      : coins;
+    const filtered = showFavoritesOnly ? coins.filter((c) => favoriteIds.has(c.id)) : coins;
     if (!filtered.length) {
       nodesRef.current = [];
       setNodes([]);
@@ -128,15 +165,13 @@ export default function Home() {
   const toggleFavorite = (coin: CoinMarket) => {
     setFavoriteIds((prev) => {
       const next = new Set(prev);
-      if (next.has(coin.id)) next.delete(coin.id);
+      const removing = next.has(coin.id);
+      if (removing) next.delete(coin.id);
       else next.add(coin.id);
       try {
         localStorage.setItem("cryptoBubblesFavorites", JSON.stringify([...next]));
       } catch {
         // ignore
-      }
-      if (showFavoritesOnly) {
-        setCoins((prevCoins) => prevCoins.filter((c) => next.has(c.id)));
       }
       return next;
     });

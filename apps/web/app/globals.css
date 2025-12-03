@@ -260,7 +260,7 @@ body {
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.75);
   border-color: var(--edge-color, rgba(255, 255, 255, 0.25));
   outline: 2px solid #ffffff;
-  outline-offset: 2px;
+  outline-offset: -1px;
   cursor: grabbing;
 }
 

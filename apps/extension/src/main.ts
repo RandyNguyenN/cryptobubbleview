@@ -78,6 +78,26 @@ const ranges = Array.from({ length: 10 }, (_, i) => {
   return { label: `${start} - ${end}`, page: i + 1, perPage: 100 };
 });
 
+async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promise<Response> {
+  let attempt = 0;
+  let lastError: unknown;
+  while (attempt < attempts) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+      lastError = new Error(`API error ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+    attempt += 1;
+    if (attempt < attempts) {
+      const jitter = Math.random() * 400;
+      await new Promise((r) => setTimeout(r, delayMs + jitter));
+    }
+  }
+  throw lastError ?? new Error("API request failed");
+}
+
 function loadFavorites() {
   try {
     const raw = localStorage.getItem("cryptoBubblesFavorites");
@@ -198,10 +218,7 @@ async function fetchCoins() {
     lastUpdateSpan.textContent = "Loading data...";
     const { perPage, page } = selectedRange;
     const url = buildApi(perPage, page);
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`API error ${res.status}`);
-    }
+    const res = await fetchWithRetry(url);
     const data = (await res.json()) as CoinMarket[];
     coinsData = data;
     initNodes({ reuseExisting: true });
