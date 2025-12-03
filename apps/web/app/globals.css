@@ -429,6 +429,14 @@ body {
   opacity: 1;
 }
 
+.market-head .price,
+.market-head .cap,
+.market-head .volume,
+.market-head .change {
+  justify-content: flex-end;
+  text-align: right;
+}
+
 .market-body {
   display: flex;
   flex-direction: column;
