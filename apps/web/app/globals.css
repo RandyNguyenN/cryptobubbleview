@@ -377,6 +377,200 @@ body {
   max-width: 520px;
 }
 
+.market-table {
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.market-head,
+.market-row {
+  display: grid;
+  grid-template-columns: 42px 28px 2.2fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.market-head {
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+  color: rgba(245, 247, 251, 0.9);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.market-head .sortable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.market-head .sortable:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.market-head .sortable .sort-icon {
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.market-head .sortable:hover .sort-icon,
+.market-head .sortable.active .sort-icon {
+  opacity: 1;
+}
+
+.market-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.market-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  color: #f5f7fb;
+  min-height: 40px;
+}
+
+.market-row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.market-row .coin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coin-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px;
+}
+
+.coin-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.coin-name {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.coin-symbol-inline {
+  color: rgba(245, 247, 251, 0.6);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.col.change.pos {
+  color: #8ef0a0;
+}
+
+.col.change.neg {
+  color: #ffb3b3;
+}
+
+.market-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 900px) {
+  .market-head,
+  .market-row {
+    grid-template-columns: 36px 26px 2fr 1fr 1fr 1fr;
+  }
+  .market-head .volume, .market-head .cap,
+  .market-row .volume, .market-row .cap {
+    display: none;
+  }
+}
+
+.market-row .price,
+.market-row .volume,
+.market-row .cap {
+  text-align: right;
+}
+
+.market-head .price,
+.market-head .volume,
+.market-head .cap {
+  text-align: right;
+}
+
+.col.rank {
+  text-align: left;
+  font-weight: 700;
+}
+
+.col.change {
+  text-align: center;
+  font-weight: 700;
+}
+
+.change.fill {
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.change.fill.pos {
+  background: #209c3c;
+}
+
+.change.fill.neg {
+  background: #b33a3a;
+}
+
+.change.neutral.fill {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 247, 251, 0.9);
+}
+
+.star-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: #f7f7f7;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  font-size: 12px;
+}
+
+.star-btn.on {
+  color: #ffd700;
+  border-color: #ffd700;
+}
+
+.star-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.col.fav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .popup-backdrop {
   position: fixed;
   inset: 0;

@@ -19,6 +19,8 @@ type LabelMode = "both" | "name" | "logo";
 type BubbleStyle = "glass" | "basic";
 type ModalState = { coin: CoinMarket; tf: Timeframe } | null;
 const API_BASE = "https://api.coingecko.com/api/v3/coins/markets";
+type SortField = "rank" | "price" | "cap" | "volume" | "ch1h" | "ch24h" | "ch7d";
+type SortDir = "asc" | "desc";
 
 const ranges = Array.from({ length: 10 }, (_, i) => {
   const start = i * 100 + 1;
@@ -75,6 +77,8 @@ export default function Home() {
   const spawnRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<{ id: string; pointerId: number; dx: number; dy: number; startX: number; startY: number } | null>(null);
   const dragMovedRef = useRef(false);
+  const favoriteIdsRef = useRef<Set<string>>(new Set());
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "rank", dir: "asc" });
 
   useEffect(() => {
     const updateSize = () => {
@@ -95,16 +99,17 @@ export default function Home() {
       setError(null);
       try {
         if (showFavoritesOnly) {
-          if (!favoriteIds.size) {
+          const favArray = [...favoriteIdsRef.current];
+          if (!favArray.length) {
             setCoins([]);
             setLoading(false);
             return;
           }
           const params = new URLSearchParams({
             vs_currency: "usd",
-            ids: [...favoriteIds].join(","),
+            ids: favArray.join(","),
             order: "market_cap_desc",
-            per_page: String(Math.max(1, Math.min(250, favoriteIds.size))),
+            per_page: String(Math.max(1, Math.min(250, favArray.length))),
             page: "1",
             price_change_percentage: "1h,24h,7d,30d,365d"
           });
@@ -132,7 +137,11 @@ export default function Home() {
       }
     };
     load();
-  }, [range, reloadKey, showFavoritesOnly, favoriteIds]);
+  }, [range, reloadKey, showFavoritesOnly]);
+
+  useEffect(() => {
+    favoriteIdsRef.current = favoriteIds;
+  }, [favoriteIds]);
 
   useEffect(() => {
     if (!viewport.width || !viewport.height) return;
@@ -150,7 +159,7 @@ export default function Home() {
     });
     nodesRef.current = computed;
     setNodes(computed);
-  }, [coins, timeframe, sizeMode, viewport, showFavoritesOnly, favoriteIds]);
+  }, [coins, timeframe, sizeMode, viewport, showFavoritesOnly]);
 
   // Load favorites from storage
   useEffect(() => {
@@ -172,6 +181,11 @@ export default function Home() {
         localStorage.setItem("cryptoBubblesFavorites", JSON.stringify([...next]));
       } catch {
         // ignore
+      }
+      if (showFavoritesOnly && removing) {
+        nodesRef.current = nodesRef.current.filter((n) => next.has(n.coin.id));
+        setNodes([...nodesRef.current]);
+        setCoins((prevCoins) => prevCoins.filter((c) => next.has(c.id)));
       }
       return next;
     });
@@ -248,6 +262,51 @@ export default function Home() {
     () => (viewMode === "3d" ? "3D Bubble Galaxy" : "2D Floating Bubbles"),
     [viewMode]
   );
+
+  const sortedCoins = useMemo(() => {
+    const getVal = (c: CoinMarket, field: SortField) => {
+      switch (field) {
+        case "rank":
+          return c.market_cap_rank ?? Number.POSITIVE_INFINITY;
+        case "price":
+          return c.current_price ?? 0;
+        case "cap":
+          return c.market_cap ?? 0;
+        case "volume":
+          return c.total_volume ?? 0;
+        case "ch1h":
+          return c.price_change_percentage_1h_in_currency ?? 0;
+        case "ch24h":
+          return c.price_change_percentage_24h ?? 0;
+        case "ch7d":
+          return c.price_change_percentage_7d_in_currency ?? 0;
+        default:
+          return 0;
+      }
+    };
+    const arr = [...coins];
+    arr.sort((a, b) => {
+      const va = getVal(a, sort.field);
+      const vb = getVal(b, sort.field);
+      const diff = va === vb ? (a.market_cap_rank ?? 99999) - (b.market_cap_rank ?? 99999) : va - vb;
+      return sort.dir === "asc" ? diff : -diff;
+    });
+    return arr;
+  }, [coins, sort]);
+
+  const handleSort = (field: SortField) => {
+    setSort((prev) => {
+      if (prev.field === field) {
+        return { field, dir: prev.dir === "asc" ? "desc" : "asc" };
+      }
+      return { field, dir: field === "rank" ? "asc" : "desc" };
+    });
+  };
+
+  const sortSymbol = (field: SortField) => {
+    if (sort.field === field) return sort.dir === "asc" ? "▲" : "▼";
+    return "⇅";
+  };
 
   const renderTooltip = () => {
     if (!hover || !containerRef.current) return null;
@@ -717,44 +776,78 @@ export default function Home() {
       )}
 
       <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>Market snapshot</h2>
-            <p className="muted">
-              Shared data and layout math from <code>@cryptobubble/core</code> powering both the extension
-              and this page.
-            </p>
-          </div>
-          <div className="chip">Last update {lastUpdated || "—"}</div>
-        </div>
-        <div className="grid">
-          {coins.slice(0, 9).map((c) => (
-            <div key={c.id} className="card">
-              <div className="card-top">
-                {c.image && <img src={c.image} alt={c.symbol} />}
-                <div>
-                  <div className="symbol">{c.symbol.toUpperCase()}</div>
-                  <div className="name">{c.name}</div>
-                </div>
-              </div>
-              <div className="row">
-                <span>Price</span>
-                <strong>${formatPrice(c.current_price)}</strong>
-              </div>
-              <div className="row">
-                <span>24h</span>
-                <strong className={(c.price_change_percentage_24h ?? 0) >= 0 ? "pos" : "neg"}>
-                  {formatPercent(c.price_change_percentage_24h)}
-                </strong>
-              </div>
-              <div className="row">
-                <span>7d</span>
-                <strong className={(c.price_change_percentage_7d_in_currency ?? 0) >= 0 ? "pos" : "neg"}>
-                  {formatPercent(c.price_change_percentage_7d_in_currency)}
-                </strong>
-              </div>
+        <div className="market-table">
+          <div className="market-head">
+            <div className={`col rank sortable ${sort.field === "rank" ? "active" : ""}`} onClick={() => handleSort("rank")}>
+              <span>#</span>
+              <span className="sort-icon">{sortSymbol("rank")}</span>
             </div>
-          ))}
+            <div className="col fav"></div>
+            <div className="col coin">Coin</div>
+            <div className={`col price sortable ${sort.field === "price" ? "active" : ""}`} onClick={() => handleSort("price")}>
+              <span>Price</span>
+              <span className="sort-icon">{sortSymbol("price")}</span>
+            </div>
+            <div className={`col cap sortable ${sort.field === "cap" ? "active" : ""}`} onClick={() => handleSort("cap")}>
+              <span>Market Cap</span>
+              <span className="sort-icon">{sortSymbol("cap")}</span>
+            </div>
+            <div className={`col volume sortable ${sort.field === "volume" ? "active" : ""}`} onClick={() => handleSort("volume")}>
+              <span>24h Volume</span>
+              <span className="sort-icon">{sortSymbol("volume")}</span>
+            </div>
+            <div className={`col change sortable ${sort.field === "ch1h" ? "active" : ""}`} onClick={() => handleSort("ch1h")}>
+              <span>1h</span>
+              <span className="sort-icon">{sortSymbol("ch1h")}</span>
+            </div>
+            <div className={`col change sortable ${sort.field === "ch24h" ? "active" : ""}`} onClick={() => handleSort("ch24h")}>
+              <span>24h</span>
+              <span className="sort-icon">{sortSymbol("ch24h")}</span>
+            </div>
+            <div className={`col change sortable ${sort.field === "ch7d" ? "active" : ""}`} onClick={() => handleSort("ch7d")}>
+              <span>7d</span>
+              <span className="sort-icon">{sortSymbol("ch7d")}</span>
+            </div>
+          </div>
+          <div className="market-body">
+            {sortedCoins.map((c) => {
+              const ch1h = c.price_change_percentage_1h_in_currency ?? 0;
+              const ch24h = c.price_change_percentage_24h ?? 0;
+              const ch7d = c.price_change_percentage_7d_in_currency ?? 0;
+              const chClass = (val: number) =>
+                val === 0 ? "change neutral fill" : val > 0 ? "change pos fill" : "change neg fill";
+              const isFav = favoriteIds.has(c.id);
+              return (
+                <div key={c.id} className="market-row">
+                  <div className="col rank">{c.market_cap_rank ?? "-"}</div>
+                  <div className="col fav">
+                    <button
+                      className={`star-btn ${isFav ? "on" : ""}`}
+                      onClick={() => toggleFavorite(c)}
+                      aria-label="Toggle favorite"
+                    >
+                      ★
+                    </button>
+                  </div>
+                  <div className="col coin">
+                    {c.image && <img src={c.image} alt={c.symbol} className="coin-icon" />}
+                    <div className="coin-meta">
+                      <div className="coin-name">
+                        {c.name}
+                        {c.symbol ? <span className="coin-symbol-inline">{c.symbol.toUpperCase()}</span> : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col price">${formatPrice(c.current_price)}</div>
+                  <div className="col cap">${c.market_cap?.toLocaleString() || "-"}</div>
+                  <div className="col volume">${c.total_volume?.toLocaleString() || "-"}</div>
+                  <div className={`col ${chClass(ch1h)}`}>{formatPercent(ch1h)}</div>
+                  <div className={`col ${chClass(ch24h)}`}>{formatPercent(ch24h)}</div>
+                  <div className={`col ${chClass(ch7d)}`}>{formatPercent(ch7d)}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
     </div>
