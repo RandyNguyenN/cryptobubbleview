@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Crypto Bubble View",
+  "version": "1.0.0",
+  "description": "New tab showing crypto price bubbles with filters, themes, and 2D/3D views.",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": []
+}

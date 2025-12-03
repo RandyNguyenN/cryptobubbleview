@@ -1,0 +1,21 @@
+{
+  "name": "@cryptobubble/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"TODO: add linting for core\""
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
