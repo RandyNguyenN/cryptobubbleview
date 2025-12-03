@@ -7,9 +7,14 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "npm run dev:web",
+    "build": "npm run build:web",
+    "lint": "npm run lint:web",
+
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
+
     "build:core": "npm --workspace packages/core run build",
     "build:extension": "npm --workspace apps/extension run build"
   }

@@ -571,19 +571,25 @@ export default function Home() {
                 </div>
                 <div className="coin-cell">
                   <div className="label">1h</div>
-                  <div className={`value ${modal.coin.price_change_percentage_1h_in_currency >= 0 ? "positive" : "negative"}`}>
+                  <div
+                    className={`value ${(modal.coin.price_change_percentage_1h_in_currency ?? 0) >= 0 ? "positive" : "negative"}`}
+                  >
                     {formatPercent(modal.coin.price_change_percentage_1h_in_currency)}
                   </div>
                 </div>
                 <div className="coin-cell">
                   <div className="label">24h</div>
-                  <div className={`value ${modal.coin.price_change_percentage_24h >= 0 ? "positive" : "negative"}`}>
+                  <div
+                    className={`value ${(modal.coin.price_change_percentage_24h ?? 0) >= 0 ? "positive" : "negative"}`}
+                  >
                     {formatPercent(modal.coin.price_change_percentage_24h)}
                   </div>
                 </div>
                 <div className="coin-cell">
                   <div className="label">7d</div>
-                  <div className={`value ${modal.coin.price_change_percentage_7d_in_currency >= 0 ? "positive" : "negative"}`}>
+                  <div
+                    className={`value ${(modal.coin.price_change_percentage_7d_in_currency ?? 0) >= 0 ? "positive" : "negative"}`}
+                  >
                     {formatPercent(modal.coin.price_change_percentage_7d_in_currency)}
                   </div>
                 </div>
@@ -649,13 +655,13 @@ export default function Home() {
               </div>
               <div className="row">
                 <span>24h</span>
-                <strong className={c.price_change_percentage_24h >= 0 ? "pos" : "neg"}>
+                <strong className={(c.price_change_percentage_24h ?? 0) >= 0 ? "pos" : "neg"}>
                   {formatPercent(c.price_change_percentage_24h)}
                 </strong>
               </div>
               <div className="row">
                 <span>7d</span>
-                <strong className={c.price_change_percentage_7d_in_currency >= 0 ? "pos" : "neg"}>
+                <strong className={(c.price_change_percentage_7d_in_currency ?? 0) >= 0 ? "pos" : "neg"}>
                   {formatPercent(c.price_change_percentage_7d_in_currency)}
                 </strong>
               </div>
