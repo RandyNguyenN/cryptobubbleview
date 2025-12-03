@@ -52,6 +52,8 @@ export default function Home() {
   const [backgroundColor, setBackgroundColor] = useState<string>("#0b0f1a");
   const [modal, setModal] = useState<ModalState>(null);
   const spawnRef = useRef<Map<string, number>>(new Map());
+  const dragRef = useRef<{ id: string; pointerId: number; dx: number; dy: number; startX: number; startY: number } | null>(null);
+  const dragMovedRef = useRef(false);
 
   useEffect(() => {
     const updateSize = () => {
@@ -168,6 +170,45 @@ export default function Home() {
     };
   }, [viewMode, viewport, nodes.length]);
 
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!dragRef.current || viewMode !== "2d") return;
+      const drag = dragRef.current;
+      if (e.pointerId !== drag.pointerId) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left - drag.dx;
+      const y = e.clientY - rect.top - drag.dy;
+      const dist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+      if (dist > 4) dragMovedRef.current = true;
+      const updated = nodesRef.current.map((n) => {
+        if (n.coin.id !== drag.id || !n.layout2d) return n;
+        return {
+          ...n,
+          layout2d: { ...n.layout2d, x, y, vx: 0, vy: 0 }
+        };
+      });
+      nodesRef.current = updated;
+      setNodes([...updated]);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
+      dragRef.current = null;
+      setTimeout(() => {
+        dragMovedRef.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [viewMode]);
+
   const heroTitle = useMemo(
     () => (viewMode === "3d" ? "3D Bubble Galaxy" : "2D Floating Bubbles"),
     [viewMode]
@@ -282,10 +323,23 @@ export default function Home() {
             const changeLen = Math.max(changeText.length, 4);
             const radius = node.radius;
             const isTiny = radius < 26;
-            const padding = clamp(radius * 0.05, 1.5, 4.5);
-            const symbolSize = clamp(radius * 0.24 * (3 / symbolLen), isTiny ? 8 : 11, 36);
-            const changeSize = clamp(radius * 0.16 * (5 / changeLen), isTiny ? 7 : 9.5, 22);
-            const logoSize = clamp(radius * (isTiny ? 0.4 : 0.5), isTiny ? 10 : 16, 48);
+            const responsiveScale =
+              viewport.width < 640 ? 0.9 : viewport.width < 768 ? 0.95 : 1;
+            const fontBoost = viewport.width < 640 ? 1.18 : viewport.width < 768 ? 1.1 : 1.05;
+            const displayRadius = radius * responsiveScale;
+            const isTinyDisplay = displayRadius < 28;
+            const padding = clamp(displayRadius * 0.04, 1.2, 4);
+            const symbolSize = clamp(
+              displayRadius * 0.26 * (3 / symbolLen) * fontBoost,
+              isTinyDisplay ? 10 : 12,
+              38
+            );
+            const changeSize = clamp(
+              displayRadius * 0.18 * (5 / changeLen) * fontBoost,
+              isTinyDisplay ? 9 : 11,
+              22
+            );
+            const logoSize = clamp(displayRadius * (isTinyDisplay ? 0.4 : 0.5), 12, 44);
             const now = performance.now();
             let spawn = spawnRef.current.get(node.coin.id);
             if (!spawn) {
@@ -310,7 +364,7 @@ export default function Home() {
                 const zz2 = node.y * sinX + zz * cosX;
 
                 const depth = (zz2 + 2) / 4;
-                const scale3d = (0.3 + depth * 0.9) * growEase;
+                const scale3d = (0.3 + depth * 0.9) * growEase * responsiveScale;
                 depthStyles = {
                   transform: `translate3d(${viewport.width / 2 + xz * perspective * 0.5}px, ${
                     viewport.height / 2 + yz * perspective * 0.5
@@ -320,18 +374,18 @@ export default function Home() {
                 };
               }
 
-              return (
-                <div
-                  key={node.coin.id}
-                  className="bubble"
-                  style={{
-                    width: node.radius * 2,
-                    height: node.radius * 2,
-                    marginLeft: -node.radius,
-                    marginTop: -node.radius,
+            return (
+              <div
+                key={node.coin.id}
+                className="bubble"
+                style={{
+                    width: displayRadius * 2,
+                    height: displayRadius * 2,
+                    marginLeft: -displayRadius,
+                    marginTop: -displayRadius,
                     transform:
                       viewMode === "2d"
-                        ? `translate(${x}px, ${y}px) scale(${scale * growEase})`
+                        ? `translate(${x}px, ${y}px) scale(${scale * growEase * responsiveScale})`
                         : depthStyles.transform,
                     opacity: viewMode === "2d" ? 0.9 : depthStyles.opacity,
                     zIndex:
@@ -347,31 +401,31 @@ export default function Home() {
                       bubbleStyle === "basic"
                         ? "0 10px 22px rgba(0,0,0,0.5)"
                         : "0 12px 36px rgba(0,0,0,0.55)",
-                    border: `1.5px solid ${gradient}`,
                     padding,
-                    gap: isTiny ? 2 : 4,
-                    borderWidth: Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px"
+                    gap: isTinyDisplay ? 1 : 3,
+                    ["--edge-color" as any]: gradient,
+                    ["--edge-width" as any]: Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px"
                   }}
-                  onMouseMove={(e) => {
+                  onPointerDown={(e) => {
+                    if (viewMode !== "2d") return;
                     const rect = containerRef.current?.getBoundingClientRect();
                     if (!rect) return;
-                    setHover({
-                      coin: node.coin,
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top
-                    });
+                    const cx = node.layout2d?.x ?? x;
+                    const cy = node.layout2d?.y ?? y;
+                    dragRef.current = {
+                      id: node.coin.id,
+                      pointerId: e.pointerId,
+                      dx: e.clientX - rect.left - cx,
+                      dy: e.clientY - rect.top - cy,
+                      startX: e.clientX,
+                      startY: e.clientY
+                    };
+                    dragMovedRef.current = false;
                   }}
-                  onMouseEnter={(e) => {
-                    const rect = containerRef.current?.getBoundingClientRect();
-                    if (!rect) return;
-                    setHover({
-                      coin: node.coin,
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top
-                    });
+                  onClick={() => {
+                    if (dragMovedRef.current) return;
+                    setModal({ coin: node.coin, tf: timeframe });
                   }}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => setModal({ coin: node.coin, tf: timeframe })}
                 >
                   {node.coin.image && labelMode !== "name" && (
                     <img
@@ -398,9 +452,8 @@ export default function Home() {
                     {changeText}
                   </div>
                 </div>
-              );
-            })}
-          {renderTooltip()}
+            );
+          })}
         </div>
       </main>
 

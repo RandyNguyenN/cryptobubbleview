@@ -79,6 +79,12 @@ body {
   color: #0b0f1a;
 }
 
+.pill-control.split:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
 .pill-control select {
   background: transparent;
   border: none;
@@ -104,6 +110,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .pill-control.split button.active {
@@ -113,6 +120,10 @@ body {
 .pill-control.split button:hover {
   background: #bbc863;
   color: #0b0f1a;
+}
+
+.pill-control.split button:last-child {
+  border-right: none;
 }
 
 .icon-pill {
@@ -174,6 +185,13 @@ body {
   overflow: hidden;
 }
 
+@media (max-width: 640px) {
+  .bubble-container {
+    height: calc(100vh - 140px);
+    min-height: 460px;
+  }
+}
+
 .status {
   position: absolute;
   top: 12px;
@@ -204,6 +222,10 @@ body {
   backdrop-filter: blur(0.2px);
   overflow: hidden;
   box-sizing: border-box;
+  border: var(--edge-width, 1.5px) solid var(--edge-color, rgba(255, 255, 255, 0.25));
+  gap: 2px;
+  cursor: grab;
+  touch-action: none;
 }
 
 .bubble-logo {
@@ -217,7 +239,7 @@ body {
 
 .bubble-symbol {
   font-weight: 700;
-  margin-top: 1px;
+  margin-top: 0;
   letter-spacing: 0.02em;
   max-width: 95%;
   white-space: nowrap;
@@ -235,8 +257,11 @@ body {
 }
 
 .bubble:hover {
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
-  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.75);
+  border-color: var(--edge-color, rgba(255, 255, 255, 0.25));
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  cursor: grabbing;
 }
 
 .tooltip {
