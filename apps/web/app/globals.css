@@ -933,6 +933,38 @@ body {
   font-size: 11px;
 }
 
+.halo-slider {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 6px;
+}
+
+.halo-slider.disabled {
+  opacity: 0.6;
+}
+
+.halo-slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.halo-slider input[type="range"] {
+  width: 100%;
+  accent-color: #7ae0ff;
+}
+
+.halo-slider-value {
+  font-size: 12px;
+  color: rgba(245, 247, 251, 0.8);
+}
+
 @media (max-width: 640px) {
   .bubble-options-head {
     align-items: flex-start;

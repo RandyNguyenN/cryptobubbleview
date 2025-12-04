@@ -17,6 +17,7 @@ type BubbleViewMode = "2d" | "3d";
 type HoverState = { coin: CoinMarket; x: number; y: number } | null;
 type LabelMode = "both" | "name" | "logo" | "volume" | "cap" | "rank" | "price";
 type BubbleStyle = "glass" | "basic" | "halo";
+type HaloStrength = number;
 type ModalState = { coin: CoinMarket; tf: Timeframe } | null;
 const API_BASE = "https://api.coingecko.com/api/v3/coins/markets";
 type SortField = "rank" | "price" | "cap" | "volume" | "ch1h" | "ch24h" | "ch7d";
@@ -77,10 +78,9 @@ export default function Home() {
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
   const [sizeMode, setSizeMode] = useState<SizeMode>("cap");
   const [range, setRange] = useState(ranges[0]);
-  const [viewMode, setViewMode] = useState<BubbleViewMode>("2d");
+  const viewMode: BubbleViewMode = "2d";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>("");
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [reloadKey, setReloadKey] = useState(0);
   const nodesRef = useRef<BubbleNode[]>([]);
@@ -91,11 +91,10 @@ export default function Home() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [rangePopupOpen, setRangePopupOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [bubbleOptionsOpen, setBubbleOptionsOpen] = useState(false);
   const [labelMode, setLabelMode] = useState<LabelMode>("both");
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("glass");
-  const [backgroundColor, setBackgroundColor] = useState<string>("#0b0f1a");
+  const [haloStrength, setHaloStrength] = useState<HaloStrength>(0.85);
   const [modal, setModal] = useState<ModalState>(null);
   const spawnRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<{ id: string; pointerId: number; dx: number; dy: number; startX: number; startY: number } | null>(null);
@@ -150,8 +149,6 @@ export default function Home() {
           const json = (await res.json()) as CoinMarket[];
           setCoins(json);
         }
-        const now = new Date();
-        setLastUpdated(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
       } catch (err) {
         console.error(err);
         setError("Failed to load market data");
@@ -346,6 +343,8 @@ export default function Home() {
   const formatPriceCompact = (val?: number) =>
     new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 }).format(val ?? 0);
 
+  const backgroundColor = "#0b0f1a";
+
   const sortSymbol = (field: SortField) => {
     if (sort.field === field) return sort.dir === "asc" ? "▲" : "▼";
     return "⇅";
@@ -418,9 +417,6 @@ export default function Home() {
           >
             ★
           </button>
-          <button className="icon-pill" title="Settings" onClick={() => setSettingsOpen(true)}>
-            ⚙
-          </button>
           <button className="icon-pill" title="Toggle fullscreen" onClick={() => {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
             else document.exitFullscreen?.();
@@ -470,14 +466,19 @@ export default function Home() {
             const responsiveScale =
               viewport.width < 640 ? 0.9 : viewport.width < 768 ? 0.95 : 1;
             const isHalo = bubbleStyle === "halo";
+            const haloIntensity = clamp(haloStrength, 0.4, 1.4);
+            const ringStart = clamp(60 - (haloIntensity - 1) * 10, 52, 64);
+            const ringPeak = clamp(74 + (haloIntensity - 1) * 8, 68, 82);
+            const outerAlpha = clamp(0.88 * Math.pow(haloIntensity, 0.6), 0.52, 0.95);
+            const innerShadowAlpha = clamp(0.74 + (haloIntensity - 1) * 0.18, 0.6, 0.92);
             const bubbleBackground =
               bubbleStyle === "basic"
                 ? "rgba(0,0,0,0.7)"
                 : bubbleStyle === "halo"
                   ? `
-              radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 55%, ${gradient} 78%, rgba(0,0,0,0.95) 100%),
+              radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${ringStart}%, ${gradient} ${ringPeak}%, rgba(0,0,0,${outerAlpha.toFixed(2)}) 100%),
               radial-gradient(circle at 35% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 42%),
-              radial-gradient(circle at 50% 50%, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.8) 62%, rgba(0,0,0,0.96) 100%)
+              radial-gradient(circle at 50% 50%, rgba(0,0,0,0.42) 0%, rgba(0,0,0,${innerShadowAlpha.toFixed(2)}) 58%, rgba(0,0,0,0.9) 100%)
             `
                   : `
                     radial-gradient(circle at 35% 30%, rgba(255,255,255,0.14), rgba(255,255,255,0) 38%),
@@ -487,9 +488,9 @@ export default function Home() {
               bubbleStyle === "basic"
                 ? "0 10px 22px rgba(0,0,0,0.5)"
                 : bubbleStyle === "halo"
-                  ? `0 0 0 2px rgba(0,0,0,0.35), 0 0 20px 8px ${gradient}, 0 18px 32px rgba(0,0,0,0.55)`
+                  ? `0 0 0 1.6px rgba(0,0,0,0.28), 0 0 ${12 + haloIntensity * 6}px ${4 + haloIntensity * 3}px ${gradient}, 0 11px 20px rgba(0,0,0,0.42)`
                   : "0 12px 36px rgba(0,0,0,0.55)";
-            const edgeWidth = isHalo ? "2.8px" : Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px";
+            const edgeWidth = isHalo ? `${1.5 + haloIntensity * 0.6}px` : Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px";
             const fontBoost = viewport.width < 640 ? 1.18 : viewport.width < 768 ? 1.1 : 1.05;
             const displayRadius = radius * responsiveScale;
             const isTinyDisplay = displayRadius < 28;
@@ -667,115 +668,6 @@ export default function Home() {
         </>
       )}
 
-      {settingsOpen && (
-        <>
-          <div className="popup-backdrop" onClick={() => setSettingsOpen(false)} />
-          <div className="popup">
-            <div className="popup-header">
-              <div className="popup-title">Settings</div>
-              <button className="popup-close" onClick={() => setSettingsOpen(false)} aria-label="Close">
-                ×
-              </button>
-            </div>
-            <div className="popup-body settings">
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">Status</span>
-                  <span className="value">Last update: {lastUpdated || "—"}</span>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">Background</span>
-                  <input
-                    type="color"
-                    value={backgroundColor}
-                    onChange={(e) => setBackgroundColor(e.target.value)}
-                    className="color-input"
-                  />
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">View</span>
-                  <div className="slider-group">
-                    <button
-                      className={`slider-btn ${viewMode === "2d" ? "active" : ""}`}
-                      onClick={() => setViewMode("2d")}
-                    >
-                      2D
-                    </button>
-                    <button
-                      className={`slider-btn ${viewMode === "3d" ? "active" : ""}`}
-                      onClick={() => setViewMode("3d")}
-                    >
-                      3D
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">Refresh</span>
-                  <button className="pill-control ghost-btn" onClick={() => setReloadKey((k) => k + 1)}>
-                    Refresh
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">Bubble Label</span>
-                  <div className="slider-group">
-                    <button
-                      className={`slider-btn ${labelMode === "both" ? "active" : ""}`}
-                      onClick={() => setLabelMode("both")}
-                    >
-                      Name + Logo
-                    </button>
-                    <button
-                      className={`slider-btn ${labelMode === "name" ? "active" : ""}`}
-                      onClick={() => setLabelMode("name")}
-                    >
-                      Name
-                    </button>
-                    <button
-                      className={`slider-btn ${labelMode === "logo" ? "active" : ""}`}
-                      onClick={() => setLabelMode("logo")}
-                    >
-                      Logo
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-row">
-                  <span className="label">Bubble Style</span>
-                  <div className="slider-group">
-                    <button
-                      className={`slider-btn ${bubbleStyle === "glass" ? "active" : ""}`}
-                      onClick={() => setBubbleStyle("glass")}
-                    >
-                      Glass
-                    </button>
-                    <button
-                      className={`slider-btn ${bubbleStyle === "basic" ? "active" : ""}`}
-                      onClick={() => setBubbleStyle("basic")}
-                    >
-                      Basic
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {modal && (
         <>
           <div className="popup-backdrop" onClick={() => setModal(null)} />
@@ -926,6 +818,21 @@ export default function Home() {
                         <span className="bubble-option-sub">{opt.desc}</span>
                       </button>
                     ))}
+                  </div>
+                  <div className={`halo-slider ${bubbleStyle !== "halo" ? "disabled" : ""}`}>
+                    <div className="halo-slider-row">
+                      <span className="halo-slider-label">Halo strength</span>
+                      <span className="halo-slider-value">{haloStrength.toFixed(1)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1.4}
+                      step={0.1}
+                      value={haloStrength}
+                      onChange={(e) => setHaloStrength(parseFloat(e.target.value))}
+                      disabled={bubbleStyle !== "halo"}
+                    />
                   </div>
                 </div>
 
