@@ -78,7 +78,7 @@ export default function Home() {
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
   const [sizeMode, setSizeMode] = useState<SizeMode>("cap");
   const [range, setRange] = useState(ranges[0]);
-  const viewMode: BubbleViewMode = "2d";
+  const [viewMode] = useState<BubbleViewMode>("2d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
