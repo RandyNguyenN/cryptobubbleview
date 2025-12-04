@@ -356,7 +356,8 @@ function createBubbleDom(coin: CoinMarket, radius: number) {
 }
 
 function loop(timestamp: number) {
-  const dt = (timestamp - lastFrameTime) / 1000;
+  const rawDt = (timestamp - lastFrameTime) / 1000;
+  const dt = Math.min(rawDt, 0.05); // clamp large gaps (e.g., when tab was hidden)
   lastFrameTime = timestamp;
 
   if (!rotationPaused) {
@@ -678,6 +679,11 @@ document.addEventListener("click", (e) => {
   closeLimitPopup();
 });
 document.addEventListener("fullscreenchange", syncFullscreenButton);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    lastFrameTime = performance.now();
+  }
+});
 window.addEventListener("resize", () => initNodes());
 coinClose?.addEventListener("click", hideCoinModal);
 coinBackdrop?.addEventListener("click", hideCoinModal);
