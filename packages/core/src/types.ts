@@ -1,6 +1,6 @@
 export type Timeframe = "1h" | "24h" | "7d" | "30d" | "365d";
 
-export type SizeMode = "cap" | "percent";
+export type SizeMode = "cap" | "percent" | "volume";
 
 export interface RangeOption {
   label: string;
@@ -53,4 +53,5 @@ export interface BubbleMetric {
   coin: CoinMarket;
   cap: number;
   change: number;
+  volume: number;
 }

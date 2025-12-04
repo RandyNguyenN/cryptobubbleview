@@ -45,7 +45,7 @@ const coinLink = document.getElementById("coin-link") as HTMLAnchorElement | nul
 const coinFavBtn = document.getElementById("coin-fav-btn");
 
 type BubbleViewMode = "2d" | "3d";
-type SizeMode = "cap" | "percent";
+type SizeMode = "cap" | "percent" | "volume";
 type BubbleStyle = "glass" | "basic";
 type LabelMode = "both" | "name" | "logo";
 

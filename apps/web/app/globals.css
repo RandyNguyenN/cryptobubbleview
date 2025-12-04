@@ -592,7 +592,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 520px;
+  width: 720px;
   max-height: 90vh;
   background: rgba(18, 22, 32, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -741,6 +741,206 @@ body {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
   min-width: 320px;
+}
+
+.slider-group.compact {
+  min-width: 620px;
+}
+
+.slider-group.wide {
+  width: 100%;
+  justify-content: stretch;
+}
+
+.bubble-options .settings-row {
+  align-items: stretch;
+  padding: 4px 6px;
+  gap: 12px;
+}
+
+.bubble-options .slider-group {
+  flex: 1;
+  margin-left: 0;
+}
+
+.bubble-options .slider-btn {
+  width: 100%;
+  text-align: center;
+}
+
+.bubble-options .settings-card {
+  padding: 14px;
+  margin: 0 8px;
+}
+
+.bubble-options {
+  padding: 8px 10px 16px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: rgba(245, 247, 251, 0.6);
+  font-weight: 800;
+}
+
+.bubble-options-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 12px;
+  flex-wrap: wrap;
+}
+
+.bubble-options-heading {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.bubble-options-sub {
+  margin: 4px 0 0;
+  color: rgba(245, 247, 251, 0.7);
+  font-size: 12px;
+  max-width: 520px;
+}
+
+.bubble-options-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.summary-pill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(120deg, rgba(122, 224, 255, 0.12), rgba(255, 255, 255, 0.04));
+  color: #e8eefc;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.bubble-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.bubble-card {
+  position: relative;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(120% 80% at 16% 0%, rgba(122, 224, 255, 0.08), rgba(255, 255, 255, 0)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bubble-card--compact {
+  gap: 6px;
+}
+
+.bubble-card--compact .bubble-option-group {
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.bubble-card--compact .bubble-option-btn {
+  padding: 10px 12px;
+}
+
+.bubble-card--wide {
+  grid-column: 1 / -1;
+}
+
+.bubble-card--wide .bubble-option-group {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.bubble-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bubble-card-title {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.bubble-card-desc {
+  color: rgba(245, 247, 251, 0.7);
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.bubble-option-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.bubble-option-group--dense {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.bubble-option-group--tight {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.bubble-option-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: inherit;
+  text-align: left;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.bubble-option-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bubble-option-btn.active {
+  border-color: rgba(122, 224, 255, 0.8);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(122, 224, 255, 0.16);
+  background: rgba(122, 224, 255, 0.08);
+}
+
+.bubble-option-title {
+  font-size: 12px;
+}
+
+.bubble-option-sub {
+  color: rgba(245, 247, 251, 0.65);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .bubble-options-head {
+    align-items: flex-start;
+  }
+
+  .bubble-options-summary {
+    width: 100%;
+  }
 }
 
 .slider-btn {

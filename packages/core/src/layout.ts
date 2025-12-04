@@ -28,10 +28,19 @@ export function calcRadius(metric: BubbleMetric, ranges: {
   maxCap: number;
   minChange: number;
   maxChange: number;
+  minVolume?: number;
+  maxVolume?: number;
   mode?: SizeMode;
 }): number {
   const mode = ranges.mode ?? "cap";
+  const mapArea = (norm: number, anchorScale = 1.55) => {
+    const minArea = Math.pow(MIN_RADIUS * 0.75, 2);
+    const maxArea = Math.pow(MAX_RADIUS * anchorScale, 2);
+    return minArea + clamp(norm, 0, 1) * (maxArea - minArea);
+  };
+
   if (mode === "percent") {
+    // Revert to simpler proportional sizing for percent change
     const val = metric.change;
     const minV = ranges.minChange ?? 0;
     const maxV = ranges.maxChange ?? 1;
@@ -39,14 +48,36 @@ export function calcRadius(metric: BubbleMetric, ranges: {
     return MIN_RADIUS + clamp(norm, 0, 1) * (MAX_RADIUS - MIN_RADIUS);
   }
 
+  if (mode === "volume") {
+    const vol = metric.volume || ranges.minVolume || 1;
+    const minVol = Math.max(1, ranges.minVolume || 1);
+    const maxVol = Math.max(minVol + 1, ranges.maxVolume || minVol + 1);
+    const effMinVol = Math.max(minVol, maxVol / 25); // keep contrast but avoid extreme flattening
+    const volClamped = clamp(vol, effMinVol, maxVol);
+    const norm = clamp(
+      Math.log(volClamped / effMinVol) / (Math.log(maxVol / effMinVol) || 1),
+      0,
+      1
+    );
+    const eased = Math.pow(norm, 1.1);
+    const area = mapArea(eased, 1.55);
+    return Math.sqrt(area);
+  }
+
+  // cap
   const cap = metric.cap || ranges.minCap || 1;
   const minCap = ranges.minCap || 1;
   const maxCap = ranges.maxCap || minCap + 1;
-  const logCap = Math.log(Math.max(cap, 1));
-  const logMin = Math.log(Math.max(minCap, 1));
-  const logMax = Math.log(Math.max(maxCap, minCap + 1));
-  const norm = (logCap - logMin) / (logMax - logMin || 1);
-  return MIN_RADIUS + clamp(norm, 0, 1) * (MAX_RADIUS - MIN_RADIUS);
+  const effMinCap = Math.max(minCap, maxCap / 25);
+  const capClamped = clamp(cap, effMinCap, maxCap);
+  const norm = clamp(
+    Math.log(capClamped / effMinCap) / (Math.log(maxCap / effMinCap) || 1),
+    0,
+    1
+  );
+  const eased = Math.pow(norm, 1.1);
+  const area = mapArea(eased, 1.55);
+  return Math.sqrt(area);
 }
 
 export function computeMetrics(coins: CoinMarket[], timeframe: Timeframe): BubbleMetric[] {
@@ -54,7 +85,8 @@ export function computeMetrics(coins: CoinMarket[], timeframe: Timeframe): Bubbl
   return coins.map((coin) => ({
     coin,
     cap: coin.market_cap ?? 0,
-    change: Math.abs(selectChangeByTimeframe(coin, tf) ?? 0)
+    change: Math.abs(selectChangeByTimeframe(coin, tf) ?? 0),
+    volume: coin.total_volume ?? 1
   }));
 }
 
@@ -87,15 +119,60 @@ export function buildBubbleNodes(
   const metrics = computeMetrics(coins, timeframe);
   const caps = metrics.map((m) => m.cap).filter((v) => v > 0);
   const changes = metrics.map((m) => m.change);
+  const volumes = metrics.map((m) => m.volume).filter((v) => v > 0);
   const minCap = caps.length ? Math.min(...caps) : 0;
   const maxCap = caps.length ? Math.max(...caps) : 1;
   const minChange = changes.length ? Math.min(...changes) : 0;
   const maxChange = changes.length ? Math.max(...changes) : 1;
+  const minVolume = volumes.length ? Math.min(...volumes) : 0;
+  const maxVolume = volumes.length ? Math.max(...volumes) : 1;
+
+  let radiusByIndex: number[] | null = null;
+  if (sizeMode === "volume" || sizeMode === "cap") {
+    // Derive radii sequentially: largest bubble anchors size, next bubble scales from previous by volume ratio
+    // with a bias to reduce drop-off (so a 3x smaller volume is not 3x smaller area).
+    const sorted = metrics
+      .map((m, i) => {
+        const val =
+          sizeMode === "volume"
+            ? Math.max(m.volume, 1)
+            : Math.max(m.cap, 1);
+        return { i, val };
+      })
+      .sort((a, b) => b.val - a.val);
+    const baseMax = MAX_RADIUS * 1.55; // anchor bubble
+    const minR = MIN_RADIUS * 0.65;
+    radiusByIndex = new Array(coins.length).fill(MIN_RADIUS);
+    if (sorted.length) {
+      radiusByIndex[sorted[0].i] = baseMax;
+      for (let k = 1; k < sorted.length; k++) {
+        const prev = sorted[k - 1];
+        const current = sorted[k];
+        const ratio = clamp(current.val / Math.max(prev.val, 1), 0, 1);
+        // Blend raw ratio with a moderate floor to lessen shrink; ratio^0.5 keeps ordering, bias lifts small volumes.
+        const easedRatio = Math.pow(ratio, 0.5);
+        const weighted = 0.5 + 0.5 * easedRatio;
+        const r = Math.max(minR, radiusByIndex[prev.i] * weighted);
+        radiusByIndex[current.i] = r;
+      }
+    }
+  }
 
   const total = coins.length || 1;
   const nodes = coins.map((coin, index) => {
     const metric = metrics[index];
-    const radius = calcRadius(metric, { minCap, maxCap, minChange, maxChange, mode: sizeMode });
+    const radius =
+      radiusByIndex !== null
+        ? radiusByIndex[index]
+        : calcRadius(metric, {
+            minCap,
+            maxCap,
+            minChange,
+            maxChange,
+            minVolume,
+            maxVolume,
+            mode: sizeMode
+          });
     const sizeFactor = (radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS || 1);
     const pos = scatterPosition(index, total, depthRange);
 

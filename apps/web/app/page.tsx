@@ -15,8 +15,8 @@ import type { BubbleNode, CoinMarket, SizeMode, Timeframe } from "@cryptobubble/
 
 type BubbleViewMode = "2d" | "3d";
 type HoverState = { coin: CoinMarket; x: number; y: number } | null;
-type LabelMode = "both" | "name" | "logo";
-type BubbleStyle = "glass" | "basic";
+type LabelMode = "both" | "name" | "logo" | "volume" | "cap" | "rank" | "price";
+type BubbleStyle = "glass" | "basic" | "halo";
 type ModalState = { coin: CoinMarket; tf: Timeframe } | null;
 const API_BASE = "https://api.coingecko.com/api/v3/coins/markets";
 type SortField = "rank" | "price" | "cap" | "volume" | "ch1h" | "ch24h" | "ch7d";
@@ -27,6 +27,28 @@ const ranges = Array.from({ length: 10 }, (_, i) => {
   const end = start + 99;
   return { label: `${start}-${end}`, page: i + 1, perPage: 100 };
 });
+
+const sizeOptions: { key: SizeMode; title: string; desc: string }[] = [
+  { key: "cap", title: "Market Cap", desc: "Emphasize established projects with larger caps." },
+  { key: "percent", title: "% Change", desc: "Let recent momentum drive bubble size." },
+  { key: "volume", title: "24h Volume", desc: "Scale with trading activity and liquidity." }
+];
+
+const labelOptions: { key: LabelMode; title: string; desc: string }[] = [
+  { key: "both", title: "Name + Logo", desc: "Balanced identity and recognition." },
+  { key: "name", title: "Name", desc: "Keep the canvas text-first." },
+  { key: "logo", title: "Logo", desc: "Minimal look using symbols only." },
+  { key: "volume", title: "24h Volume", desc: "Surface market activity directly." },
+  { key: "cap", title: "Market Cap", desc: "Show size by capitalization." },
+  { key: "rank", title: "Rank", desc: "Highlight market position quickly." },
+  { key: "price", title: "Price", desc: "Show live pricing inside each bubble." }
+];
+
+const bubbleStyleOptions: { key: BubbleStyle; title: string; desc: string }[] = [
+  { key: "glass", title: "Glass", desc: "Frosted, modern look with depth." },
+  { key: "basic", title: "Basic", desc: "Clean, lightweight outlines." },
+  { key: "halo", title: "Halo", desc: "Bold glow with color-coded rim." }
+];
 
 async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promise<Response> {
   let attempt = 0;
@@ -70,6 +92,7 @@ export default function Home() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [rangePopupOpen, setRangePopupOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bubbleOptionsOpen, setBubbleOptionsOpen] = useState(false);
   const [labelMode, setLabelMode] = useState<LabelMode>("both");
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("glass");
   const [backgroundColor, setBackgroundColor] = useState<string>("#0b0f1a");
@@ -314,6 +337,15 @@ export default function Home() {
     });
   };
 
+  const formatVolume = (val?: number) =>
+    new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(val ?? 0);
+
+  const formatCap = (val?: number) =>
+    new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(val ?? 0);
+
+  const formatPriceCompact = (val?: number) =>
+    new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 }).format(val ?? 0);
+
   const sortSymbol = (field: SortField) => {
     if (sort.field === field) return sort.dir === "asc" ? "▲" : "▼";
     return "⇅";
@@ -356,6 +388,10 @@ export default function Home() {
     );
   };
 
+  const sizeLabel = sizeOptions.find((o) => o.key === sizeMode)?.title ?? "Size";
+  const labelLabel = labelOptions.find((o) => o.key === labelMode)?.title ?? "Content";
+  const styleLabel = bubbleStyleOptions.find((o) => o.key === bubbleStyle)?.title ?? "Style";
+
   return (
     <div className="page">
       <header className="top-bar">
@@ -369,22 +405,9 @@ export default function Home() {
               <option value="365d">Year</option>
             </select>
           </div>
-          <div className="pill-control split">
-            <button
-              className={sizeMode === "cap" ? "active" : ""}
-              onClick={() => setSizeMode("cap")}
-              title="Size by market cap (log-scaled)"
-            >
-              Cap
-            </button>
-            <button
-              className={sizeMode === "percent" ? "active" : ""}
-              onClick={() => setSizeMode("percent")}
-              title="Size by percent change"
-            >
-              % Change
-            </button>
-          </div>
+          <button className="pill-control ghost-btn" onClick={() => setBubbleOptionsOpen(true)}>
+            Bubble
+          </button>
           <button className="pill-control ghost-btn" onClick={() => setRangePopupOpen(true)}>
             <span className="range-label">{range.label}</span>
           </button>
@@ -424,27 +447,64 @@ export default function Home() {
             const x = node.layout2d?.x ?? (viewport.width || 0) / 2;
             const y = node.layout2d?.y ?? (viewport.height || 0) / 2;
             const changeText = formatPercent(tfChange);
+            const volumeText = `$${formatVolume(node.coin.total_volume)}`;
+            const capText = `$${formatCap(node.coin.market_cap)}`;
+            const rankText = `#${node.coin.market_cap_rank ?? "-"}`;
+            const priceText = `$${formatPriceCompact(node.coin.current_price)}`;
+            const secondaryText =
+              labelMode === "volume"
+                ? volumeText
+                : labelMode === "cap"
+                  ? capText
+                  : labelMode === "rank"
+                    ? rankText
+                    : labelMode === "price"
+                      ? priceText
+                      : changeText;
             const symbolLen = Math.max(node.coin.symbol?.length || 0, 3);
-            const changeLen = Math.max(changeText.length, 4);
+            const changeLen = Math.max(secondaryText.length, 4);
             const radius = node.radius;
             const isTiny = radius < 26;
+            const isMini = radius < 16;
+            const isMicro = radius < 10;
             const responsiveScale =
               viewport.width < 640 ? 0.9 : viewport.width < 768 ? 0.95 : 1;
+            const isHalo = bubbleStyle === "halo";
+            const bubbleBackground =
+              bubbleStyle === "basic"
+                ? "rgba(0,0,0,0.7)"
+                : bubbleStyle === "halo"
+                  ? `
+              radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 55%, ${gradient} 78%, rgba(0,0,0,0.95) 100%),
+              radial-gradient(circle at 35% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 42%),
+              radial-gradient(circle at 50% 50%, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.8) 62%, rgba(0,0,0,0.96) 100%)
+            `
+                  : `
+                    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.14), rgba(255,255,255,0) 38%),
+                    radial-gradient(circle at 50% 50%, ${gradient} 0%, rgba(0,0,0,0.8) 65%, rgba(0,0,0,0.95) 100%)
+                  `;
+            const bubbleShadow =
+              bubbleStyle === "basic"
+                ? "0 10px 22px rgba(0,0,0,0.5)"
+                : bubbleStyle === "halo"
+                  ? `0 0 0 2px rgba(0,0,0,0.35), 0 0 20px 8px ${gradient}, 0 18px 32px rgba(0,0,0,0.55)`
+                  : "0 12px 36px rgba(0,0,0,0.55)";
+            const edgeWidth = isHalo ? "2.8px" : Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px";
             const fontBoost = viewport.width < 640 ? 1.18 : viewport.width < 768 ? 1.1 : 1.05;
             const displayRadius = radius * responsiveScale;
             const isTinyDisplay = displayRadius < 28;
             const padding = clamp(displayRadius * 0.04, 1.2, 4);
             const symbolSize = clamp(
               displayRadius * 0.26 * (3 / symbolLen) * fontBoost,
-              isTinyDisplay ? 10 : 12,
+              isMicro ? 5 : isTinyDisplay ? 8 : 12,
               38
             );
             const changeSize = clamp(
               displayRadius * 0.18 * (5 / changeLen) * fontBoost,
-              isTinyDisplay ? 9 : 11,
+              isMicro ? 5 : isTinyDisplay ? 7 : 11,
               22
             );
-            const logoSize = clamp(displayRadius * (isTinyDisplay ? 0.4 : 0.5), 12, 44);
+            const logoSize = clamp(displayRadius * (isTinyDisplay ? 0.4 : 0.5), isMicro ? 6 : 10, 44);
             const now = performance.now();
             let spawn = spawnRef.current.get(node.coin.id);
             if (!spawn) {
@@ -495,21 +555,12 @@ export default function Home() {
                     opacity: viewMode === "2d" ? 0.9 : depthStyles.opacity,
                     zIndex:
                       viewMode === "2d" ? 400 + Math.floor(node.sizeFactor * 400) : depthStyles.zIndex,
-                    background:
-                      bubbleStyle === "basic"
-                        ? "rgba(0,0,0,0.7)"
-                        : `
-                    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.14), rgba(255,255,255,0) 38%),
-                    radial-gradient(circle at 50% 50%, ${gradient} 0%, rgba(0,0,0,0.8) 65%, rgba(0,0,0,0.95) 100%)
-                  `,
-                    boxShadow:
-                      bubbleStyle === "basic"
-                        ? "0 10px 22px rgba(0,0,0,0.5)"
-                        : "0 12px 36px rgba(0,0,0,0.55)",
+                    background: bubbleBackground,
+                    boxShadow: bubbleShadow,
                     padding,
-                    gap: isTinyDisplay ? 1 : 3,
+                    gap: isMini ? 0 : isTinyDisplay ? 1 : 3,
                     ["--edge-color" as any]: gradient,
-                    ["--edge-width" as any]: Math.abs(tfChange) >= 1.5 ? "2px" : "1.5px"
+                    ["--edge-width" as any]: edgeWidth
                   }}
                   onPointerDown={(e) => {
                     if (viewMode !== "2d") return;
@@ -540,7 +591,15 @@ export default function Home() {
                       style={{ width: logoSize, height: logoSize }}
                     />
                   )}
-                  {labelMode !== "logo" && (
+                  {labelMode !== "logo" &&
+                    !(
+                      isMini &&
+                      labelMode !== "price" &&
+                      labelMode !== "volume" &&
+                      labelMode !== "cap" &&
+                      labelMode !== "rank"
+                    ) &&
+                    !isMicro && (
                     <div
                       className="bubble-symbol"
                       style={{ fontSize: symbolSize, lineHeight: "1", letterSpacing: "0.02em" }}
@@ -548,14 +607,29 @@ export default function Home() {
                       {node.coin.symbol.toUpperCase()}
                     </div>
                   )}
-                  <div className="bubble-change" style={{
-                    color: tfChange >= 0 ? "#a5ffb5" : "#ffb3b3",
-                    fontSize: changeSize,
-                    lineHeight: "1",
-                    marginTop: isTiny ? 1 : 1.5
-                  }}>
-                    {changeText}
-                  </div>
+                  {!isMicro &&
+                    (labelMode === "price" ||
+                      labelMode === "volume" ||
+                      labelMode === "cap" ||
+                      labelMode === "rank" ||
+                      !isMini) && (
+                    <div
+                      className="bubble-change"
+                      style={{
+                        color:
+                          labelMode === "volume" || labelMode === "cap" || labelMode === "rank" || labelMode === "price"
+                            ? "#f5f7fb"
+                            : tfChange >= 0
+                              ? "#a5ffb5"
+                              : "#ffb3b3",
+                        fontSize: changeSize,
+                        lineHeight: "1",
+                        marginTop: isTiny ? 1 : 1.5
+                      }}
+                    >
+                      {secondaryText}
+                    </div>
+                  )}
                 </div>
             );
           })}
@@ -780,6 +854,102 @@ export default function Home() {
                 >
                   View on CoinGecko
                 </a>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {bubbleOptionsOpen && (
+        <>
+          <div className="popup-backdrop" onClick={() => setBubbleOptionsOpen(false)} />
+          <div className="popup">
+            <div className="popup-header">
+              <div className="popup-title">Bubble options</div>
+              <button className="popup-close" onClick={() => setBubbleOptionsOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="popup-body bubble-options">
+              <div className="bubble-options-head">
+                <div>
+                  <div className="eyebrow">Display tuning</div>
+                  <div className="bubble-options-heading">Customize your bubbles</div>
+                  <p className="bubble-options-sub">Choose how bubbles size, what they show, and the finish you prefer.</p>
+                </div>
+                <div className="bubble-options-summary">
+                  <span className="summary-pill">Size · {sizeLabel}</span>
+                  <span className="summary-pill">Content · {labelLabel}</span>
+                  <span className="summary-pill">Style · {styleLabel}</span>
+                </div>
+              </div>
+
+              <div className="bubble-options-grid">
+                <div className="settings-card bubble-card bubble-card--compact">
+                  <div className="bubble-card-header">
+                    <div>
+                      <div className="eyebrow">Sizing logic</div>
+                      <div className="bubble-card-title">Bubble size</div>
+                      <p className="bubble-card-desc">How each bubble scales on the canvas.</p>
+                    </div>
+                  </div>
+                  <div className="bubble-option-group">
+                    {sizeOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        className={`bubble-option-btn ${sizeMode === opt.key ? "active" : ""}`}
+                        onClick={() => setSizeMode(opt.key)}
+                      >
+                        <span className="bubble-option-title">{opt.title}</span>
+                        <span className="bubble-option-sub">{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="settings-card bubble-card">
+                  <div className="bubble-card-header">
+                    <div>
+                      <div className="eyebrow">Finish</div>
+                      <div className="bubble-card-title">Bubble style</div>
+                      <p className="bubble-card-desc">Choose the aesthetic of the spheres.</p>
+                    </div>
+                  </div>
+                  <div className="bubble-option-group bubble-option-group--tight">
+                    {bubbleStyleOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        className={`bubble-option-btn ${bubbleStyle === opt.key ? "active" : ""}`}
+                        onClick={() => setBubbleStyle(opt.key)}
+                      >
+                        <span className="bubble-option-title">{opt.title}</span>
+                        <span className="bubble-option-sub">{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="settings-card bubble-card bubble-card--wide">
+                  <div className="bubble-card-header">
+                    <div>
+                      <div className="eyebrow">Labels</div>
+                      <div className="bubble-card-title">Bubble content</div>
+                      <p className="bubble-card-desc">Pick what appears inside each bubble.</p>
+                    </div>
+                  </div>
+                  <div className="bubble-option-group bubble-option-group--dense">
+                    {labelOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        className={`bubble-option-btn ${labelMode === opt.key ? "active" : ""}`}
+                        onClick={() => setLabelMode(opt.key)}
+                      >
+                        <span className="bubble-option-title">{opt.title}</span>
+                        <span className="bubble-option-sub">{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
