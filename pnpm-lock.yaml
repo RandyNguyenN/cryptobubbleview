@@ -21,7 +21,7 @@ importers:
   apps/extension:
     dependencies:
       '@cryptobubble/core':
-        specifier: workspace:*
+        specifier: file:../../packages/core
         version: link:../../packages/core
     devDependencies:
       esbuild:
@@ -34,7 +34,7 @@ importers:
   apps/web:
     dependencies:
       '@cryptobubble/core':
-        specifier: workspace:*
+        specifier: file:../../packages/core
         version: link:../../packages/core
       next:
         specifier: 16.0.7

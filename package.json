@@ -21,5 +21,6 @@
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
+  "packageManager": "pnpm@10.24.0",
   "note": "this is b9258db"
 }

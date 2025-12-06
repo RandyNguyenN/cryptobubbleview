@@ -8,7 +8,7 @@
     "lint": "echo \"TODO: add linting for extension\""
   },
   "dependencies": {
-    "@cryptobubble/core": "workspace:*"
+    "@cryptobubble/core": "file:../../packages/core"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",
