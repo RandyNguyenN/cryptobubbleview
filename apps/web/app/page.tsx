@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   buildApiUrl,
   buildBubbleNodes,
@@ -51,6 +52,43 @@ const bubbleStyleOptions: { key: BubbleStyle; title: string; desc: string }[] = 
   { key: "halo", title: "Halo", desc: "Bold glow with color-coded rim." }
 ];
 
+const parseTimeframeParam = (val: string | null): Timeframe => {
+  if (val === "1h" || val === "24h" || val === "7d" || val === "30d" || val === "365d") return val;
+  return "24h";
+};
+
+const parseSizeModeParam = (val: string | null): SizeMode => {
+  if (val === "cap" || val === "percent" || val === "volume") return val;
+  return "cap";
+};
+
+const parseLabelModeParam = (val: string | null): LabelMode => {
+  if (val === "both" || val === "name" || val === "logo" || val === "volume" || val === "cap" || val === "rank" || val === "price") {
+    return val;
+  }
+  return "both";
+};
+
+const parseBubbleStyleParam = (val: string | null): BubbleStyle => {
+  if (val === "glass" || val === "basic" || val === "halo") return val;
+  return "glass";
+};
+
+const parseRangeParam = (val: string | null) => {
+  const num = Number(val);
+  if (Number.isInteger(num)) {
+    const match = ranges.find((r) => r.page === num);
+    if (match) return match;
+  }
+  return ranges[0];
+};
+
+const parseHaloParam = (val: string | null): HaloStrength => {
+  const num = Number.parseFloat(val ?? "");
+  if (Number.isFinite(num)) return clamp(num, 0.4, 1.4);
+  return 0.85;
+};
+
 async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promise<Response> {
   let attempt = 0;
   let lastError: unknown;
@@ -72,12 +110,21 @@ async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promis
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const isEmbed = pathname?.startsWith("/embed");
+  const initialTimeframe = useMemo(() => parseTimeframeParam(searchParams.get("timeframe")), [searchParams]);
+  const initialSizeMode = useMemo(() => parseSizeModeParam(searchParams.get("size")), [searchParams]);
+  const initialLabelMode = useMemo(() => parseLabelModeParam(searchParams.get("label")), [searchParams]);
+  const initialBubbleStyle = useMemo(() => parseBubbleStyleParam(searchParams.get("style")), [searchParams]);
+  const initialRange = useMemo(() => parseRangeParam(searchParams.get("range")), [searchParams]);
+  const initialHalo = useMemo(() => parseHaloParam(searchParams.get("halo")), [searchParams]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [coins, setCoins] = useState<CoinMarket[]>([]);
   const [nodes, setNodes] = useState<BubbleNode[]>([]);
-  const [timeframe, setTimeframe] = useState<Timeframe>("24h");
-  const [sizeMode, setSizeMode] = useState<SizeMode>("cap");
-  const [range, setRange] = useState(ranges[0]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(initialTimeframe);
+  const [sizeMode, setSizeMode] = useState<SizeMode>(initialSizeMode);
+  const [range, setRange] = useState(initialRange);
   const [viewMode] = useState<BubbleViewMode>("2d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,17 +139,27 @@ export default function Home() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [rangePopupOpen, setRangePopupOpen] = useState(false);
   const [bubbleOptionsOpen, setBubbleOptionsOpen] = useState(false);
-  const [labelMode, setLabelMode] = useState<LabelMode>("both");
-  const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("glass");
-  const [haloStrength, setHaloStrength] = useState<HaloStrength>(0.85);
+  const [labelMode, setLabelMode] = useState<LabelMode>(initialLabelMode);
+  const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>(initialBubbleStyle);
+  const [haloStrength, setHaloStrength] = useState<HaloStrength>(initialHalo);
   const [modal, setModal] = useState<ModalState>(null);
-  const [bubbleTab, setBubbleTab] = useState<"controls" | "embed">("controls");
+  const [bubbleTab, setBubbleTab] = useState<"controls" | "embed">(isEmbed ? "embed" : "controls");
   const [embedCopied, setEmbedCopied] = useState(false);
   const spawnRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<{ id: string; pointerId: number; dx: number; dy: number; startX: number; startY: number } | null>(null);
   const dragMovedRef = useRef(false);
   const favoriteIdsRef = useRef<Set<string>>(new Set());
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "rank", dir: "asc" });
+
+  useEffect(() => {
+    if (!isEmbed) return;
+    setTimeframe(initialTimeframe);
+    setSizeMode(initialSizeMode);
+    setLabelMode(initialLabelMode);
+    setBubbleStyle(initialBubbleStyle);
+    setRange(initialRange);
+    setHaloStrength(initialHalo);
+  }, [isEmbed, initialTimeframe, initialSizeMode, initialLabelMode, initialBubbleStyle, initialRange, initialHalo]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -416,44 +473,46 @@ export default function Home() {
   };
 
   return (
-    <div className="page">
-      <header className="top-bar">
-        <div className="top-actions">
-          <div className="pill-control">
-            <select value={timeframe} onChange={(e) => setTimeframe(e.target.value as Timeframe)}>
-              <option value="24h">Day</option>
-              <option value="1h">Hour</option>
-              <option value="7d">Week</option>
-              <option value="30d">Month</option>
-              <option value="365d">Year</option>
-            </select>
+    <div className={`page ${isEmbed ? "embed-page" : ""}`}>
+      {!isEmbed && (
+        <header className="top-bar">
+          <div className="top-actions">
+            <div className="pill-control">
+              <select value={timeframe} onChange={(e) => setTimeframe(e.target.value as Timeframe)}>
+                <option value="24h">Day</option>
+                <option value="1h">Hour</option>
+                <option value="7d">Week</option>
+                <option value="30d">Month</option>
+                <option value="365d">Year</option>
+              </select>
+            </div>
+            <button className="pill-control ghost-btn" onClick={() => setRangePopupOpen(true)}>
+              <span className="range-label">{range.label}</span>
+            </button>
+            <button
+              className={`icon-pill ${showFavoritesOnly ? "active" : ""}`}
+              title="Toggle favorites"
+              onClick={() => setShowFavoritesOnly((v) => !v)}
+            >
+              ★
+            </button>
+            <button
+              className="icon-pill icon-pill--settings"
+              title="Bubble settings"
+              aria-label="Bubble settings"
+              onClick={() => setBubbleOptionsOpen(true)}
+            >
+              ⚙
+            </button>
+            <button className="icon-pill" title="Toggle fullscreen" onClick={() => {
+              if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+              else document.exitFullscreen?.();
+            }}>
+              ⛶
+            </button>
           </div>
-          <button className="pill-control ghost-btn" onClick={() => setRangePopupOpen(true)}>
-            <span className="range-label">{range.label}</span>
-          </button>
-          <button
-            className={`icon-pill ${showFavoritesOnly ? "active" : ""}`}
-            title="Toggle favorites"
-            onClick={() => setShowFavoritesOnly((v) => !v)}
-          >
-            ★
-          </button>
-          <button
-            className="icon-pill icon-pill--settings"
-            title="Bubble settings"
-            aria-label="Bubble settings"
-            onClick={() => setBubbleOptionsOpen(true)}
-          >
-            ⚙
-          </button>
-          <button className="icon-pill" title="Toggle fullscreen" onClick={() => {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-            else document.exitFullscreen?.();
-          }}>
-            ⛶
-          </button>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="viewport">
         <div
@@ -669,7 +728,7 @@ export default function Home() {
         </div>
       </main>
 
-      {rangePopupOpen && (
+      {!isEmbed && rangePopupOpen && (
         <>
           <div className="popup-backdrop" onClick={() => setRangePopupOpen(false)} />
           <div className="popup">
@@ -784,7 +843,7 @@ export default function Home() {
         </>
       )}
 
-      {bubbleOptionsOpen && (
+      {!isEmbed && bubbleOptionsOpen && (
         <>
           <div className="popup-backdrop" onClick={() => setBubbleOptionsOpen(false)} />
           <div className="popup">
@@ -947,81 +1006,83 @@ export default function Home() {
         </>
       )}
 
-      <section className="panel">
-        <div className="market-table">
-          <div className="market-head">
-            <div className={`col rank sortable ${sort.field === "rank" ? "active" : ""}`} onClick={() => handleSort("rank")}>
-              <span>#</span>
-              <span className="sort-icon">{sortSymbol("rank")}</span>
+      {!isEmbed && (
+        <section className="panel">
+          <div className="market-table">
+            <div className="market-head">
+              <div className={`col rank sortable ${sort.field === "rank" ? "active" : ""}`} onClick={() => handleSort("rank")}>
+                <span>#</span>
+                <span className="sort-icon">{sortSymbol("rank")}</span>
+              </div>
+              <div className="col fav"></div>
+              <div className="col coin">Coin</div>
+              <div className={`col price sortable ${sort.field === "price" ? "active" : ""}`} onClick={() => handleSort("price")}>
+                <span>Price</span>
+                <span className="sort-icon">{sortSymbol("price")}</span>
+              </div>
+              <div className={`col cap sortable ${sort.field === "cap" ? "active" : ""}`} onClick={() => handleSort("cap")}>
+                <span>Market Cap</span>
+                <span className="sort-icon">{sortSymbol("cap")}</span>
+              </div>
+              <div className={`col volume sortable ${sort.field === "volume" ? "active" : ""}`} onClick={() => handleSort("volume")}>
+                <span>24h Volume</span>
+                <span className="sort-icon">{sortSymbol("volume")}</span>
+              </div>
+              <div className={`col change sortable ${sort.field === "ch1h" ? "active" : ""}`} onClick={() => handleSort("ch1h")}>
+                <span>1h</span>
+                <span className="sort-icon">{sortSymbol("ch1h")}</span>
+              </div>
+              <div className={`col change sortable ${sort.field === "ch24h" ? "active" : ""}`} onClick={() => handleSort("ch24h")}>
+                <span>24h</span>
+                <span className="sort-icon">{sortSymbol("ch24h")}</span>
+              </div>
+              <div className={`col change sortable ${sort.field === "ch7d" ? "active" : ""}`} onClick={() => handleSort("ch7d")}>
+                <span>7d</span>
+                <span className="sort-icon">{sortSymbol("ch7d")}</span>
+              </div>
             </div>
-            <div className="col fav"></div>
-            <div className="col coin">Coin</div>
-            <div className={`col price sortable ${sort.field === "price" ? "active" : ""}`} onClick={() => handleSort("price")}>
-              <span>Price</span>
-              <span className="sort-icon">{sortSymbol("price")}</span>
-            </div>
-            <div className={`col cap sortable ${sort.field === "cap" ? "active" : ""}`} onClick={() => handleSort("cap")}>
-              <span>Market Cap</span>
-              <span className="sort-icon">{sortSymbol("cap")}</span>
-            </div>
-            <div className={`col volume sortable ${sort.field === "volume" ? "active" : ""}`} onClick={() => handleSort("volume")}>
-              <span>24h Volume</span>
-              <span className="sort-icon">{sortSymbol("volume")}</span>
-            </div>
-            <div className={`col change sortable ${sort.field === "ch1h" ? "active" : ""}`} onClick={() => handleSort("ch1h")}>
-              <span>1h</span>
-              <span className="sort-icon">{sortSymbol("ch1h")}</span>
-            </div>
-            <div className={`col change sortable ${sort.field === "ch24h" ? "active" : ""}`} onClick={() => handleSort("ch24h")}>
-              <span>24h</span>
-              <span className="sort-icon">{sortSymbol("ch24h")}</span>
-            </div>
-            <div className={`col change sortable ${sort.field === "ch7d" ? "active" : ""}`} onClick={() => handleSort("ch7d")}>
-              <span>7d</span>
-              <span className="sort-icon">{sortSymbol("ch7d")}</span>
-            </div>
-          </div>
-          <div className="market-body">
-            {sortedCoins.map((c) => {
-              const ch1h = c.price_change_percentage_1h_in_currency ?? 0;
-              const ch24h = c.price_change_percentage_24h ?? 0;
-              const ch7d = c.price_change_percentage_7d_in_currency ?? 0;
-              const chClass = (val: number) =>
-                val === 0 ? "change neutral fill" : val > 0 ? "change pos fill" : "change neg fill";
-              const isFav = favoriteIds.has(c.id);
-              return (
-                <div key={c.id} className="market-row">
-                  <div className="col rank">{c.market_cap_rank ?? "-"}</div>
-                  <div className="col fav">
-                    <button
-                      className={`star-btn ${isFav ? "on" : ""}`}
-                      onClick={() => toggleFavorite(c)}
-                      aria-label="Toggle favorite"
-                    >
-                      ★
-                    </button>
-                  </div>
-                  <div className="col coin">
-                    {c.image && <img src={c.image} alt={c.symbol} className="coin-icon" />}
-                    <div className="coin-meta">
-                      <div className="coin-name">
-                        {c.name}
-                        {c.symbol ? <span className="coin-symbol-inline">{c.symbol.toUpperCase()}</span> : null}
+            <div className="market-body">
+              {sortedCoins.map((c) => {
+                const ch1h = c.price_change_percentage_1h_in_currency ?? 0;
+                const ch24h = c.price_change_percentage_24h ?? 0;
+                const ch7d = c.price_change_percentage_7d_in_currency ?? 0;
+                const chClass = (val: number) =>
+                  val === 0 ? "change neutral fill" : val > 0 ? "change pos fill" : "change neg fill";
+                const isFav = favoriteIds.has(c.id);
+                return (
+                  <div key={c.id} className="market-row">
+                    <div className="col rank">{c.market_cap_rank ?? "-"}</div>
+                    <div className="col fav">
+                      <button
+                        className={`star-btn ${isFav ? "on" : ""}`}
+                        onClick={() => toggleFavorite(c)}
+                        aria-label="Toggle favorite"
+                      >
+                        ★
+                      </button>
+                    </div>
+                    <div className="col coin">
+                      {c.image && <img src={c.image} alt={c.symbol} className="coin-icon" />}
+                      <div className="coin-meta">
+                        <div className="coin-name">
+                          {c.name}
+                          {c.symbol ? <span className="coin-symbol-inline">{c.symbol.toUpperCase()}</span> : null}
+                        </div>
                       </div>
                     </div>
+                    <div className="col price">${formatPrice(c.current_price)}</div>
+                    <div className="col cap">${c.market_cap?.toLocaleString() || "-"}</div>
+                    <div className="col volume">${c.total_volume?.toLocaleString() || "-"}</div>
+                    <div className={`col ${chClass(ch1h)}`}>{formatPercent(ch1h)}</div>
+                    <div className={`col ${chClass(ch24h)}`}>{formatPercent(ch24h)}</div>
+                    <div className={`col ${chClass(ch7d)}`}>{formatPercent(ch7d)}</div>
                   </div>
-                  <div className="col price">${formatPrice(c.current_price)}</div>
-                  <div className="col cap">${c.market_cap?.toLocaleString() || "-"}</div>
-                  <div className="col volume">${c.total_volume?.toLocaleString() || "-"}</div>
-                  <div className={`col ${chClass(ch1h)}`}>{formatPercent(ch1h)}</div>
-                  <div className={`col ${chClass(ch24h)}`}>{formatPercent(ch24h)}</div>
-                  <div className={`col ${chClass(ch7d)}`}>{formatPercent(ch7d)}</div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

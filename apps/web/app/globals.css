@@ -35,6 +35,22 @@ body {
   gap: 20px;
 }
 
+.page.embed-page {
+  gap: 0;
+}
+
+.embed-page .viewport {
+  padding: 0;
+  min-height: 100vh;
+}
+
+.embed-page .bubble-container {
+  height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+
 .top-bar {
   display: flex;
   justify-content: flex-end;
