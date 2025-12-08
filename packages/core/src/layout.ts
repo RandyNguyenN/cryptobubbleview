@@ -144,9 +144,10 @@ export function buildBubbleNodes(
     const minVal = sorted[sorted.length - 1]?.val ?? 1;
     const spread = maxVal / Math.max(minVal, 1);
     // When cap/volume values are very close (mid/low pages), compress sizes so the canvas is not flooded.
-    const tightness = clamp((spread - 2) / 10, 0, 1); // spread <=2 => tightness 0, >=12 => 1
-    const globalScale = 0.72 + 0.28 * tightness;
-    const baseMax = MAX_RADIUS * 1.55; // anchor bubble
+    // spread <=2 => tightness 0 (small bubbles), spread >=12 => 1 (original sizing).
+    const tightness = clamp((spread - 2) / 10, 0, 1);
+    const globalScale = 0.55 + 0.45 * tightness;
+    const baseMax = MAX_RADIUS * 1.45; // slightly lower anchor, further reduced by globalScale
     const minR = MIN_RADIUS * 0.65;
     radiusByIndex = new Array(coins.length).fill(MIN_RADIUS);
     if (sorted.length) {
@@ -221,10 +222,10 @@ export function compute2DLayout(nodes: BubbleNode[], width: number, height: numb
 
   const baseCoverage = count > 80 ? 0.75 : count > 60 ? 0.78 : 0.82;
   // If average radius is large (happens when sizes are close), reduce coverage so initial layout has more breathing room.
-  const radiusInflation = clamp((avgRadius - 30) / 18, 0, 1); // kicks in when avg radius >30
-  const coverageTarget = clamp(baseCoverage - radiusInflation * 0.12, 0.62, baseCoverage);
+  const radiusInflation = clamp((avgRadius - 28) / 14, 0, 1); // kicks in sooner when avg radius >28
+  const coverageTarget = clamp(baseCoverage - radiusInflation * 0.18, 0.58, baseCoverage);
   const targetArea = w * h * coverageTarget;
-  const areaScale = clamp(Math.sqrt((targetArea || 1) / (baseArea || 1)), 0.85, 1.35);
+  const areaScale = clamp(Math.sqrt((targetArea || 1) / (baseArea || 1)), 0.7, 1.35);
 
   sorted.forEach((node) => {
     const targetScale = (0.75 + node.sizeFactor * 0.45) * areaScale;
