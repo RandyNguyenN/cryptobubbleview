@@ -140,6 +140,65 @@ body {
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.08s ease;
 }
 
+.icon-pill--settings {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.bubble-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.bubble-tab {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.bubble-tab.active {
+  background: #bbc863;
+  border-color: #bbc863;
+  color: #0b0f1a;
+}
+
+.embed-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.embed-url {
+  font-size: 13px;
+  color: #d5d9e3;
+  word-break: break-all;
+}
+
+.embed-code {
+  background: #0b0f1a;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 12px;
+  font-size: 13px;
+  color: #e8ecf5;
+  overflow-x: auto;
+}
+
+.embed-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .icon-pill:hover {
   background: #bbc863;
   border-color: #bbc863;

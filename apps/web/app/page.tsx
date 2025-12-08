@@ -96,6 +96,8 @@ export default function Home() {
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("glass");
   const [haloStrength, setHaloStrength] = useState<HaloStrength>(0.85);
   const [modal, setModal] = useState<ModalState>(null);
+  const [bubbleTab, setBubbleTab] = useState<"controls" | "embed">("controls");
+  const [embedCopied, setEmbedCopied] = useState(false);
   const spawnRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<{ id: string; pointerId: number; dx: number; dy: number; startX: number; startY: number } | null>(null);
   const dragMovedRef = useRef(false);
@@ -390,6 +392,28 @@ export default function Home() {
   const sizeLabel = sizeOptions.find((o) => o.key === sizeMode)?.title ?? "Size";
   const labelLabel = labelOptions.find((o) => o.key === labelMode)?.title ?? "Content";
   const styleLabel = bubbleStyleOptions.find((o) => o.key === bubbleStyle)?.title ?? "Style";
+  const embedUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      timeframe,
+      size: sizeMode,
+      label: labelMode,
+      style: bubbleStyle,
+      range: String(range.page),
+      halo: haloStrength.toFixed(1)
+    });
+    return `https://www.cryptobubbleview.com/embed?${params.toString()}`;
+  }, [timeframe, sizeMode, labelMode, bubbleStyle, range.page, haloStrength]);
+  const embedCode = `<iframe src="${embedUrl}" width="100%" height="640" style="border:0; background:#0b0f1a;" loading="lazy"></iframe>`;
+
+  const copyEmbed = async () => {
+    try {
+      await navigator.clipboard?.writeText(embedCode);
+      setEmbedCopied(true);
+      setTimeout(() => setEmbedCopied(false), 1500);
+    } catch {
+      setEmbedCopied(false);
+    }
+  };
 
   return (
     <div className="page">
@@ -404,9 +428,6 @@ export default function Home() {
               <option value="365d">Year</option>
             </select>
           </div>
-          <button className="pill-control ghost-btn" onClick={() => setBubbleOptionsOpen(true)}>
-            Bubble
-          </button>
           <button className="pill-control ghost-btn" onClick={() => setRangePopupOpen(true)}>
             <span className="range-label">{range.label}</span>
           </button>
@@ -416,6 +437,14 @@ export default function Home() {
             onClick={() => setShowFavoritesOnly((v) => !v)}
           >
             ★
+          </button>
+          <button
+            className="icon-pill icon-pill--settings"
+            title="Bubble settings"
+            aria-label="Bubble settings"
+            onClick={() => setBubbleOptionsOpen(true)}
+          >
+            ⚙
           </button>
           <button className="icon-pill" title="Toggle fullscreen" onClick={() => {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
@@ -434,6 +463,9 @@ export default function Home() {
         >
           {loading && <div className="status">Loading market data…</div>}
           {error && <div className="status error">{error}</div>}
+          {showFavoritesOnly && !loading && !error && nodes.length === 0 && (
+            <div className="status">No favorites yet. Add coins to favorites to see them here.</div>
+          )}
         {!loading &&
           !error &&
           nodes.map((node, idx) => {
@@ -756,109 +788,161 @@ export default function Home() {
         <>
           <div className="popup-backdrop" onClick={() => setBubbleOptionsOpen(false)} />
           <div className="popup">
-            <div className="popup-header">
-              <div className="popup-title">Bubble options</div>
-              <button className="popup-close" onClick={() => setBubbleOptionsOpen(false)} aria-label="Close">
-                ×
+          <div className="popup-header">
+            <div className="popup-title">Bubble options</div>
+            <button className="popup-close" onClick={() => setBubbleOptionsOpen(false)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="popup-body bubble-options">
+            <div className="bubble-tabs">
+              <button
+                className={`bubble-tab ${bubbleTab === "controls" ? "active" : ""}`}
+                onClick={() => setBubbleTab("controls")}
+              >
+                Display
+              </button>
+              <button
+                className={`bubble-tab ${bubbleTab === "embed" ? "active" : ""}`}
+                onClick={() => setBubbleTab("embed")}
+              >
+                HTML widget
               </button>
             </div>
-            <div className="popup-body bubble-options">
-              <div className="bubble-options-head">
-                <div>
-                  <div className="eyebrow">Display tuning</div>
-                  <div className="bubble-options-heading">Customize your bubbles</div>
-                  <p className="bubble-options-sub">Choose how bubbles size, what they show, and the finish you prefer.</p>
+
+            {bubbleTab === "controls" && (
+              <>
+                <div className="bubble-options-head">
+                  <div>
+                    <div className="eyebrow">Display tuning</div>
+                    <div className="bubble-options-heading">Customize your bubbles</div>
+                    <p className="bubble-options-sub">Choose how bubbles size, what they show, and the finish you prefer.</p>
+                  </div>
+                  <div className="bubble-options-summary">
+                    <span className="summary-pill">Size · {sizeLabel}</span>
+                    <span className="summary-pill">Content · {labelLabel}</span>
+                    <span className="summary-pill">Style · {styleLabel}</span>
+                  </div>
                 </div>
-                <div className="bubble-options-summary">
-                  <span className="summary-pill">Size · {sizeLabel}</span>
-                  <span className="summary-pill">Content · {labelLabel}</span>
-                  <span className="summary-pill">Style · {styleLabel}</span>
+
+                <div className="bubble-options-grid">
+                  <div className="settings-card bubble-card bubble-card--compact">
+                    <div className="bubble-card-header">
+                      <div>
+                        <div className="eyebrow">Sizing logic</div>
+                        <div className="bubble-card-title">Bubble size</div>
+                        <p className="bubble-card-desc">How each bubble scales on the canvas.</p>
+                      </div>
+                    </div>
+                    <div className="bubble-option-group">
+                      {sizeOptions.map((opt) => (
+                        <button
+                          key={opt.key}
+                          className={`bubble-option-btn ${sizeMode === opt.key ? "active" : ""}`}
+                          onClick={() => setSizeMode(opt.key)}
+                        >
+                          <span className="bubble-option-title">{opt.title}</span>
+                          <span className="bubble-option-sub">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="settings-card bubble-card">
+                    <div className="bubble-card-header">
+                      <div>
+                        <div className="eyebrow">Finish</div>
+                        <div className="bubble-card-title">Bubble style</div>
+                        <p className="bubble-card-desc">Choose the aesthetic of the spheres.</p>
+                      </div>
+                    </div>
+                    <div className="bubble-option-group bubble-option-group--tight">
+                      {bubbleStyleOptions.map((opt) => (
+                        <button
+                          key={opt.key}
+                          className={`bubble-option-btn ${bubbleStyle === opt.key ? "active" : ""}`}
+                          onClick={() => setBubbleStyle(opt.key)}
+                        >
+                          <span className="bubble-option-title">{opt.title}</span>
+                          <span className="bubble-option-sub">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className={`halo-slider ${bubbleStyle !== "halo" ? "disabled" : ""}`}>
+                      <div className="halo-slider-row">
+                        <span className="halo-slider-label">Halo strength</span>
+                        <span className="halo-slider-value">{haloStrength.toFixed(1)}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.4}
+                        max={1.4}
+                        step={0.1}
+                        value={haloStrength}
+                        onChange={(e) => setHaloStrength(parseFloat(e.target.value))}
+                        disabled={bubbleStyle !== "halo"}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="settings-card bubble-card bubble-card--wide">
+                    <div className="bubble-card-header">
+                      <div>
+                        <div className="eyebrow">Labels</div>
+                        <div className="bubble-card-title">Bubble content</div>
+                        <p className="bubble-card-desc">Pick what appears inside each bubble.</p>
+                      </div>
+                    </div>
+                    <div className="bubble-option-group bubble-option-group--dense">
+                      {labelOptions.map((opt) => (
+                        <button
+                          key={opt.key}
+                          className={`bubble-option-btn ${labelMode === opt.key ? "active" : ""}`}
+                          onClick={() => setLabelMode(opt.key)}
+                        >
+                          <span className="bubble-option-title">{opt.title}</span>
+                          <span className="bubble-option-sub">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {bubbleTab === "embed" && (
+              <div className="settings-card bubble-card bubble-card--wide">
+                <div className="bubble-card-header">
+                  <div>
+                    <div className="eyebrow">HTML widget</div>
+                    <div className="bubble-card-title">Embed as iframe</div>
+                    <p className="bubble-card-desc">
+                      Copy this iframe to embed your current view on any site.
+                    </p>
+                  </div>
+                  <div className="bubble-options-summary">
+                    <span className="summary-pill">Size · {sizeLabel}</span>
+                    <span className="summary-pill">Content · {labelLabel}</span>
+                    <span className="summary-pill">Style · {styleLabel}</span>
+                  </div>
+                </div>
+                <div className="embed-box">
+                  <div className="embed-url">{embedUrl}</div>
+                  <pre className="embed-code">
+                    <code>{embedCode}</code>
+                  </pre>
+                  <div className="embed-actions">
+                    <button className="pill-action" onClick={() => window.open(embedUrl, "_blank")}>
+                      Open preview
+                    </button>
+                    <button className="pill-action primary" onClick={copyEmbed}>
+                      {embedCopied ? "Copied!" : "Copy iframe"}
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="bubble-options-grid">
-                <div className="settings-card bubble-card bubble-card--compact">
-                  <div className="bubble-card-header">
-                    <div>
-                      <div className="eyebrow">Sizing logic</div>
-                      <div className="bubble-card-title">Bubble size</div>
-                      <p className="bubble-card-desc">How each bubble scales on the canvas.</p>
-                    </div>
-                  </div>
-                  <div className="bubble-option-group">
-                    {sizeOptions.map((opt) => (
-                      <button
-                        key={opt.key}
-                        className={`bubble-option-btn ${sizeMode === opt.key ? "active" : ""}`}
-                        onClick={() => setSizeMode(opt.key)}
-                      >
-                        <span className="bubble-option-title">{opt.title}</span>
-                        <span className="bubble-option-sub">{opt.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="settings-card bubble-card">
-                  <div className="bubble-card-header">
-                    <div>
-                      <div className="eyebrow">Finish</div>
-                      <div className="bubble-card-title">Bubble style</div>
-                      <p className="bubble-card-desc">Choose the aesthetic of the spheres.</p>
-                    </div>
-                  </div>
-                  <div className="bubble-option-group bubble-option-group--tight">
-                    {bubbleStyleOptions.map((opt) => (
-                      <button
-                        key={opt.key}
-                        className={`bubble-option-btn ${bubbleStyle === opt.key ? "active" : ""}`}
-                        onClick={() => setBubbleStyle(opt.key)}
-                      >
-                        <span className="bubble-option-title">{opt.title}</span>
-                        <span className="bubble-option-sub">{opt.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className={`halo-slider ${bubbleStyle !== "halo" ? "disabled" : ""}`}>
-                    <div className="halo-slider-row">
-                      <span className="halo-slider-label">Halo strength</span>
-                      <span className="halo-slider-value">{haloStrength.toFixed(1)}x</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.4}
-                      max={1.4}
-                      step={0.1}
-                      value={haloStrength}
-                      onChange={(e) => setHaloStrength(parseFloat(e.target.value))}
-                      disabled={bubbleStyle !== "halo"}
-                    />
-                  </div>
-                </div>
-
-                <div className="settings-card bubble-card bubble-card--wide">
-                  <div className="bubble-card-header">
-                    <div>
-                      <div className="eyebrow">Labels</div>
-                      <div className="bubble-card-title">Bubble content</div>
-                      <p className="bubble-card-desc">Pick what appears inside each bubble.</p>
-                    </div>
-                  </div>
-                  <div className="bubble-option-group bubble-option-group--dense">
-                    {labelOptions.map((opt) => (
-                      <button
-                        key={opt.key}
-                        className={`bubble-option-btn ${labelMode === opt.key ? "active" : ""}`}
-                        onClick={() => setLabelMode(opt.key)}
-                      >
-                        <span className="bubble-option-title">{opt.title}</span>
-                        <span className="bubble-option-sub">{opt.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
+          </div>
           </div>
         </>
       )}
