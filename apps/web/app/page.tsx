@@ -89,6 +89,25 @@ const parseHaloParam = (val: string | null): HaloStrength => {
   return 0.85;
 };
 
+const buildTradeLinks = (symbol?: string | null) => {
+  const sym = symbol?.toUpperCase();
+  if (!sym) return [];
+  return [
+    { key: "binance", name: "Binance", url: `https://www.binance.com/en/trade/${sym}_USDT`, logo: "/exchanges/binance.jpg" },
+    { key: "mexc", name: "MEXC", url: `https://www.mexc.com/exchange/${sym}_USDT`, logo: "/exchanges/mexc.png" },
+    { key: "bybit", name: "Bybit", url: `https://www.bybit.com/trade/spot/${sym}/USDT`, logo: "/exchanges/bybit.png" },
+    { key: "kucoin", name: "KuCoin", url: `https://www.kucoin.com/trade/${sym}-USDT`, logo: "/exchanges/kucoin.png" },
+    { key: "gate", name: "Gate.io", url: `https://www.gate.io/trade/${sym}_USDT`, logo: "/exchanges/gate.png" },
+    { key: "bitget", name: "Bitget", url: `https://www.bitget.com/spot/${sym}USDT`, logo: "/exchanges/bitget.jpg" },
+    { key: "bitmart", name: "BitMart", url: `https://www.bitmart.com/trade/en?layout=basic&symbol=${sym}_USDT`, logo: "/exchanges/bitmart.svg" },
+    { key: "bingx", name: "BingX", url: `https://bingx.com/en-us/spot/${sym}-USDT/`, logo: "/exchanges/bingx.jpg" },
+    { key: "okx", name: "OKX", url: `https://www.okx.com/trade-spot/${sym}-usdt`, logo: "/exchanges/okx.png" },
+    { key: "coinbase", name: "Coinbase", url: `https://www.coinbase.com/advanced-trade/spot/${sym}-usd`, logo: "/exchanges/coinbase.png" },
+    { key: "cryptocom", name: "Crypto.com", url: `https://crypto.com/exchange/trade/${sym}_USDT`, logo: "/exchanges/cryptocom.jpg" },
+    { key: "kraken", name: "Kraken", url: `https://pro.kraken.com/app/trade/${sym}-usd`, logo: "/exchanges/kraken.jpg" }
+  ];
+};
+
 async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promise<Response> {
   let attempt = 0;
   let lastError: unknown;
@@ -152,6 +171,7 @@ function HomeContent() {
   const dragMovedRef = useRef(false);
   const favoriteIdsRef = useRef<Set<string>>(new Set());
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "rank", dir: "asc" });
+  const tradeLinks = useMemo(() => buildTradeLinks(modal?.coin.symbol), [modal?.coin.symbol]);
 
   useEffect(() => {
     if (!isEmbed) return;
@@ -825,6 +845,25 @@ function HomeContent() {
                 </div>
               </div>
               <div className="coin-grid">
+                <div className="coin-cell trade-cell">
+                  <div className="label">Trading on</div>
+                  <div className="trade-links">
+                    {tradeLinks.length === 0 && <div className="value">Symbol unavailable</div>}
+                    {tradeLinks.map((ex) => (
+                      <a
+                        key={ex.key}
+                        className={`trade-chip trade-${ex.key}`}
+                        href={ex.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={ex.name}
+                        aria-label={ex.name}
+                      >
+                        {ex.logo && <img src={ex.logo} alt={ex.name} className="trade-logo" />}
+                      </a>
+                    ))}
+                  </div>
+                </div>
                 <div className="coin-cell">
                   <div className="label">Price</div>
                   <div className="value">{`$${formatPrice(modal.coin.current_price)}`}</div>
@@ -874,14 +913,36 @@ function HomeContent() {
                 <button className="pill-action" onClick={() => toggleFavorite(modal.coin)}>
                   {favoriteIds.has(modal.coin.id) ? "Remove favorite" : "Add to favorite"}
                 </button>
-                <a
-                  className="pill-action primary"
-                  href={`https://www.coingecko.com/en/coins/${modal.coin.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View on CoinGecko
-                </a>
+                <div className="info-links">
+                  <span className="info-label">View on</span>
+                  <a
+                    className="info-chip cg"
+                    href={`https://www.coingecko.com/en/coins/${modal.coin.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open on CoinGecko"
+                  >
+                    <img src="/coingecko.png" alt="CoinGecko" />
+                  </a>
+                  <a
+                    className="info-chip cmc"
+                    href={`https://coinmarketcap.com/currencies/${modal.coin.id}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open on CoinMarketCap"
+                  >
+                    <img src="/coinmarketcap.avif" alt="CoinMarketCap" />
+                  </a>
+                  <a
+                    className="info-chip tv"
+                    href={`https://www.tradingview.com/symbols/${modal.coin.symbol?.toUpperCase() ?? ""}USD/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open on TradingView"
+                  >
+                    <img src="/tradingview.png" alt="TradingView" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -1085,6 +1146,7 @@ function HomeContent() {
                 <span>7d</span>
                 <span className="sort-icon">{sortSymbol("ch7d")}</span>
               </div>
+              <div className="col trading">Trading on</div>
             </div>
             <div className="market-body">
               {sortedCoins.map((c) => {
@@ -1121,6 +1183,22 @@ function HomeContent() {
                     <div className={`col ${chClass(ch1h)}`}>{formatPercent(ch1h)}</div>
                     <div className={`col ${chClass(ch24h)}`}>{formatPercent(ch24h)}</div>
                     <div className={`col ${chClass(ch7d)}`}>{formatPercent(ch7d)}</div>
+                    <div className="col trading">
+                      <div className="trade-icon-row">
+                        {buildTradeLinks(c.symbol).map((ex) => (
+                          <a
+                            key={ex.key}
+                            href={ex.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={ex.name}
+                            aria-label={ex.name}
+                          >
+                            <img src={ex.logo} alt={ex.name} className="trade-logo trade-logo--tiny" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 );
               })}

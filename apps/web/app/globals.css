@@ -556,7 +556,7 @@ body {
 .market-head,
 .market-row {
   display: grid;
-  grid-template-columns: 42px 28px 2.2fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr;
+  grid-template-columns: 42px 28px 1.2fr 1fr 0.95fr 0.95fr 0.55fr 0.55fr 0.55fr 2.2fr;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
@@ -668,10 +668,10 @@ body {
 @media (max-width: 900px) {
   .market-head,
   .market-row {
-    grid-template-columns: 36px 26px 2fr 1fr 1fr 1fr;
+    grid-template-columns: 36px 26px 2fr 1fr 1fr;
   }
-  .market-head .volume, .market-head .cap,
-  .market-row .volume, .market-row .cap {
+  .market-head .volume, .market-head .cap, .market-head .trading,
+  .market-row .volume, .market-row .cap, .market-row .trading {
     display: none;
   }
 }
@@ -682,9 +682,15 @@ body {
   text-align: right;
 }
 
+.col.trading {
+  display: flex;
+  align-items: center;
+}
+
 .market-head .price,
 .market-head .volume,
-.market-head .cap {
+.market-head .cap,
+.market-head .trading {
   text-align: right;
 }
 
@@ -1216,6 +1222,59 @@ body {
   font-size: 16px;
 }
 
+.trade-cell .trade-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.trade-cell {
+  grid-column: 1 / -1;
+}
+
+.trade-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f5f7fb;
+  font-size: 12px;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.trade-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.trade-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0;
+}
+
+.trade-icon-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.trade-logo--tiny {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
 .positive {
   color: #a5ffb5;
 }
@@ -1231,6 +1290,47 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+}
+
+.info-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.info-chip {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 11px;
+  color: #0b0f1a;
+  background: rgba(255, 255, 255, 0.05);
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.15s ease;
+}
+
+.info-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.info-chip img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: rgba(245, 247, 251, 0.7);
+  font-weight: 600;
 }
 
 .pill-action {
