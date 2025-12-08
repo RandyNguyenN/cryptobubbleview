@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   buildApiUrl,
@@ -109,7 +109,7 @@ async function fetchWithRetry(url: string, attempts = 3, delayMs = 1200): Promis
   throw lastError ?? new Error("API request failed");
 }
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const isEmbed = pathname?.startsWith("/embed");
@@ -1084,5 +1084,13 @@ export default function Home() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
