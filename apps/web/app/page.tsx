@@ -139,6 +139,8 @@ function HomeContent() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [rangePopupOpen, setRangePopupOpen] = useState(false);
   const [bubbleOptionsOpen, setBubbleOptionsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [labelMode, setLabelMode] = useState<LabelMode>(initialLabelMode);
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>(initialBubbleStyle);
   const [haloStrength, setHaloStrength] = useState<HaloStrength>(initialHalo);
@@ -384,6 +386,14 @@ function HomeContent() {
     return arr;
   }, [coins, sort]);
 
+  const searchResults = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return [];
+    return coins
+      .filter((c) => c.name.toLowerCase().includes(term) || c.symbol?.toLowerCase().includes(term))
+      .slice(0, 8);
+  }, [coins, searchQuery]);
+
   const handleSort = (field: SortField) => {
     setSort((prev) => {
       if (prev.field === field) {
@@ -477,20 +487,55 @@ function HomeContent() {
       {!isEmbed && (
         <header className="top-bar">
           <div className="top-actions">
+            <div className="search-box" onFocus={() => setSearchOpen(true)}>
+              <input
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 120)}
+                placeholder="Search coin..."
+              />
+              {searchOpen && searchResults.length > 0 && (
+                <div className="search-results">
+                  {searchResults.map((c) => (
+                    <button
+                      key={c.id}
+                      className="search-result"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setModal({ coin: c, tf: timeframe });
+                        setSearchQuery("");
+                        setSearchOpen(false);
+                      }}
+                    >
+                      <img src={c.image} alt={c.symbol} className="search-icon" />
+                      <div className="search-meta">
+                        <div className="search-name">{c.name}</div>
+                        <div className="search-symbol">{c.symbol?.toUpperCase()}</div>
+                      </div>
+                      <div className="search-price">${formatPriceCompact(c.current_price)}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="pill-control">
               <select value={timeframe} onChange={(e) => setTimeframe(e.target.value as Timeframe)}>
                 <option value="24h">Day</option>
                 <option value="1h">Hour</option>
                 <option value="7d">Week</option>
-                <option value="30d">Month</option>
-                <option value="365d">Year</option>
+              <option value="30d">Month</option>
+              <option value="365d">Year</option>
               </select>
             </div>
             <button className="pill-control ghost-btn" onClick={() => setRangePopupOpen(true)}>
               <span className="range-label">{range.label}</span>
             </button>
-            <button
-              className={`icon-pill ${showFavoritesOnly ? "active" : ""}`}
+          <button
+            className={`icon-pill ${showFavoritesOnly ? "active" : ""}`}
               title="Toggle favorites"
               onClick={() => setShowFavoritesOnly((v) => !v)}
             >
